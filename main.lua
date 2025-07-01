@@ -1,382 +1,334 @@
--- TuxRay UI Library
+--!strict
+-- TuxRay Library v1.0
+-- Estilo Rayfield com sistema de key
+
 local TuxRay = {}
 TuxRay.__index = TuxRay
-TuxRay.ElementsPerPage = 3 -- 3 elementos por página
 
--- Cores e temas baseado no estilo "oRee Scripter X Brainrot"
-local Theme = {
-    Background = Color3.fromRGB(28, 28, 38),
-    Header = Color3.fromRGB(20, 20, 30),
-    TextColor = Color3.fromRGB(200, 200, 255),
-    ElementBackground = Color3.fromRGB(35, 35, 45),
-    ToggleOn = Color3.fromRGB(36, 56, 46),
-    ToggleOff = Color3.fromRGB(56, 36, 36),
-    PageNumber = Color3.fromRGB(60, 60, 80),
-    PageNumberActive = Color3.fromRGB(0, 170, 255),
-    Separator = Color3.fromRGB(100, 100, 120)
+-- Serviços
+local CoreGui = game:GetService("CoreGui")
+local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+-- Variáveis internas
+local library = {
+    Windows = {},
+    CurrentTab = nil,
+    KeyVerified = false,
+    Minimized = false
 }
 
--- Funções utilitárias
-local function CreateElement(className, properties)
-    local element = Instance.new(className)
-    for prop, value in pairs(properties) do
-        element[prop] = value
-    end
-    return element
-end
-
-local function Roundify(element, cornerRadius)
-    local corner = CreateElement("UICorner", {
-        CornerRadius = UDim.new(0, cornerRadius or 8),
-        Parent = element
-    })
-    return element
-end
-
--- Métodos para páginas
-local PageMethods = {}
-
-function PageMethods:AddToggle(info)
-    info.Type = "Toggle"
-    info.State = info.StartingState or false
-    table.insert(self.Elements, info)
-    
-    if self.Gui.CurrentPage == self then
-        self.Gui:RenderPage(self)
-    end
-end
-
-function TuxRay.new()
-    local self = setmetatable({}, TuxRay)
-    self.Pages = {}
-    self.CurrentPage = nil
-    self.Gui = nil
-    self.Title = "oRee Scripter X Brainrot" -- Título padrão
-    return self
-end
-
+-- Métodos públicos
 function TuxRay:CreateWindow(options)
-    options = options or {}
-    self.Title = options.Title or self.Title -- Permite customização do título
+    local window = {
+        Tabs = {},
+        Options = options
+    }
     
-    -- ScreenGui principal
-    self.Gui = CreateElement("ScreenGui", {
-        Name = "TuxRayUI",
-        ResetOnSpawn = false,
-        Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-    })
+    table.insert(library.Windows, window)
+    self:InitializeUI()
     
-    -- Splash Screen
-    self:SplashScreen()
-    
-    return self
+    return setmetatable({
+        CreateTab = function(_, tabOptions)
+            return self:CreateTab(window, tabOptions)
+        end
+    }, self)
 end
 
-function TuxRay:SplashScreen()
-    local splash = CreateElement("Frame", {
-        Name = "SplashScreen",
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundColor3 = Theme.Header,
-        ZIndex = 10
-    })
-    Roundify(splash, 0)
-    splash.Parent = self.Gui
+function TuxRay:CreateTab(window, options)
+    local tab = {
+        Elements = {},
+        Options = options
+    }
+    
+    table.insert(window.Tabs, tab)
+    library.CurrentTab = tab
+    
+    return setmetatable({
+        CreateButton = function(_, buttonOptions)
+            self:CreateButton(tab, buttonOptions)
+        end,
+        CreateToggle = function(_, toggleOptions)
+            self:CreateToggle(tab, toggleOptions)
+        end,
+        CreateLabel = function(_, labelOptions)
+            self:CreateLabel(tab, labelOptions)
+        end
+    }, self)
+end
 
-    local title = CreateElement("TextLabel", {
-        Text = "TuxRay",
-        TextSize = 48,
-        Font = Enum.Font.GothamBold,
-        TextColor3 = Theme.TextColor,
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0.5, 0, 0.4, 0),
-        AnchorPoint = Vector2.new(0.5, 0.5)
-    })
-    title.Parent = splash
-
-    local website = CreateElement("TextLabel", {
-        Text = "https://oreofdev.github.io/Sw1ftSync/tuxray",
-        TextSize = 18,
-        Font = Enum.Font.Gotham,
-        TextColor3 = Theme.TextColor,
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0.5, 0, 0.55, 0),
-        AnchorPoint = Vector2.new(0.5, 0.5)
-    })
-    website.Parent = splash
-
-    -- Fechar splash após 3 segundos
-    task.delay(3, function()
-        local tween = game:GetService("TweenService"):Create(
-            splash,
-            TweenInfo.new(0.5),
-            {BackgroundTransparency = 1}
-        )
-        tween:Play()
-        tween.Completed:Wait()
-        splash:Destroy()
-        self:CreateMainUI()
+-- Métodos internos
+function TuxRay:InitializeUI()
+    -- Splash Screen
+    self:CreateSplashScreen()
+    
+    -- Verificação de Key
+    task.spawn(function()
+        task.wait(3)
+        self:DestroySplashScreen()
+        
+        if not library.KeyVerified then
+            self:CreateKeyVerification()
+        else
+            self:CreateMainUI()
+        end
     end)
 end
 
-function TuxRay:CreateMainUI()
-    -- Janela principal
-    self.MainWindow = CreateElement("Frame", {
-        Name = "MainWindow",
-        Size = UDim2.new(0, 330, 0, 220), -- Tamanho exato do script original
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = Theme.Background,
-        ClipsDescendants = true
-    })
-    Roundify(self.MainWindow, 12)
-    self.MainWindow.Parent = self.Gui
+function TuxRay:CreateSplashScreen()
+    library.Splash = Instance.new("ScreenGui")
+    library.Splash.Name = "TuxRaySplash"
+    library.Splash.Parent = CoreGui
+    library.Splash.ResetOnSpawn = false
+    library.Splash.IgnoreGuiInset = true
 
-    -- Header
-    local header = CreateElement("Frame", {
-        Name = "Header",
-        Size = UDim2.new(1, 0, 0, 36),
-        BackgroundColor3 = Theme.Header
-    })
-    Roundify(header, {topLeft = 12, topRight = 12})
-    header.Parent = self.MainWindow
+    local splashFrame = Instance.new("Frame", library.Splash)
+    splashFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    splashFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    splashFrame.Size = UDim2.new(0, 330, 0, 160)
+    splashFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    splashFrame.BorderSizePixel = 0
+    Instance.new("UICorner", splashFrame).CornerRadius = UDim.new(0, 12)
 
-    -- Título da janela
-    local windowTitle = CreateElement("TextLabel", {
-        Text = self.Title,
-        TextSize = 24,
-        Font = Enum.Font.GothamBold,
-        TextColor3 = Theme.TextColor,
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0, 12, 0.5, 0),
-        AnchorPoint = Vector2.new(0, 0.5),
-        TextXAlignment = Enum.TextXAlignment.Left
-    })
-    windowTitle.Parent = header
+    -- Title bar
+    local titleBar = Instance.new("Frame", splashFrame)
+    titleBar.Size = UDim2.new(1, 0, 0, 36)
+    titleBar.Position = UDim2.new(0, 0, 0, 0)
+    titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    titleBar.BorderSizePixel = 0
 
-    -- Sistema de arraste
-    local dragging
-    local dragInput
-    local dragStart
-    local startPos
+    local title = Instance.new("TextLabel", titleBar)
+    title.Size = UDim2.new(1, -12, 1, 0)
+    title.Position = UDim2.new(0, 12, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "TuxRay"
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 24
+    title.TextColor3 = Color3.fromRGB(200, 200, 255)
+    title.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Conteúdo principal
+    local splashContent = Instance.new("Frame", splashFrame)
+    splashContent.Size = UDim2.new(1, 0, 1, -36)
+    splashContent.Position = UDim2.new(0, 0, 0, 36)
+    splashContent.BackgroundTransparency = 1
+
+    local loadingText = Instance.new("TextLabel", splashContent)
+    loadingText.Text = "CARREGANDO..."
+    loadingText.Size = UDim2.new(1, -20, 0.5, 0)
+    loadingText.Position = UDim2.new(0, 10, 0.25, 0)
+    loadingText.BackgroundTransparency = 1
+    loadingText.Font = Enum.Font.GothamBold
+    loadingText.TextSize = 20
+    loadingText.TextColor3 = Color3.fromRGB(110, 200, 255)
+    loadingText.TextXAlignment = Enum.TextXAlignment.Center
+
+    local authorText = Instance.new("TextLabel", splashContent)
+    authorText.Text = "por oRee Scripter"
+    authorText.Size = UDim2.new(1, -20, 0, 30)
+    authorText.Position = UDim2.new(0, 10, 0.75, 0)
+    authorText.BackgroundTransparency = 1
+    authorText.Font = Enum.Font.GothamMedium
+    authorText.TextSize = 16
+    authorText.TextColor3 = Color3.fromRGB(170, 205, 255)
+    authorText.TextXAlignment = Enum.TextXAlignment.Center
+end
+
+function TuxRay:DestroySplashScreen()
+    if library.Splash and library.Splash.Parent then
+        library.Splash:Destroy()
+        library.Splash = nil
+    end
+end
+
+function TuxRay:CreateKeyVerification()
+    -- Implementação do sistema de key (simplificado para exemplo)
+    library.KeyScreen = Instance.new("ScreenGui")
+    library.KeyScreen.Name = "TuxRayKeyVerification"
+    library.KeyScreen.Parent = CoreGui
+    library.KeyScreen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    library.KeyScreen.ResetOnSpawn = false
+
+    -- Interface de verificação de key aqui...
     
-    header.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = self.MainWindow.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
+    -- Ao verificar com sucesso:
+    library.KeyVerified = true
+    self:CreateMainUI()
+end
+
+function TuxRay:CreateMainUI()
+    -- Criação da UI principal
+    library.MainUI = Instance.new("ScreenGui")
+    library.MainUI.Name = "TuxRayUI"
+    library.MainUI.Parent = CoreGui
+    library.MainUI.ResetOnSpawn = false
+    library.MainUI.Enabled = true
+
+    -- Botão minimizado
+    self:CreateMiniButton()
+
+    -- Janela principal
+    self:CreateMainWindow()
+end
+
+function TuxRay:CreateMiniButton()
+    library.MiniButton = Instance.new("TextButton")
+    library.MiniButton.Name = "MiniBtn"
+    library.MiniButton.Size = UDim2.new(0, 56, 0, 56)
+    library.MiniButton.Position = UDim2.new(0.5, -28, 0.5, -28)
+    library.MiniButton.BackgroundColor3 = Color3.fromRGB(60, 80, 120)
+    library.MiniButton.BorderSizePixel = 0
+    library.MiniButton.Text = ""
+    library.MiniButton.Parent = library.MainUI
+    Instance.new("UICorner", library.MiniButton).CornerRadius = UDim.new(1, 0)
+
+    -- Ícone do botão
+    local icon = Instance.new("ImageLabel", library.MiniButton)
+    icon.BackgroundTransparency = 1
+    icon.Size = UDim2.new(1, -8, 1, -8)
+    icon.Position = UDim2.new(0, 4, 0, 4)
+    icon.Image = "rbxassetid://138110497553919"
+
+    -- Funcionalidade de arrastar
+    local drag, startPos, startGui
+    library.MiniButton.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            drag = true
+            startPos = library.MiniButton.Position
+            startGui = i.Position
+            i.Changed:Connect(function()
+                if i.UserInputState == Enum.UserInputState.End then drag = false end
             end)
         end
     end)
     
-    header.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-    
-    game:GetService("UserInputService").InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            self.MainWindow.Position = UDim2.new(
-                startPos.X.Scale, 
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale, 
-                startPos.Y.Offset + delta.Y
-            )
+    UserInputService.InputChanged:Connect(function(i)
+        if drag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            library.MiniButton.Position = startPos + UDim2.new(0, i.Position.X - startGui.X, 0, i.Position.Y - startGui.Y)
         end
     end)
 
-    -- Container de conteúdo
-    self.ContentFrame = CreateElement("Frame", {
-        Name = "Content",
-        Size = UDim2.new(1, -20, 1, -70),
-        Position = UDim2.new(0, 10, 0, 46),
-        BackgroundTransparency = 1
-    })
-    self.ContentFrame.Parent = self.MainWindow
-
-    -- Controles de paginação
-    self.PaginationFrame = CreateElement("Frame", {
-        Name = "Pagination",
-        Size = UDim2.new(1, -20, 0, 32),
-        Position = UDim2.new(0, 10, 1, -40),
-        AnchorPoint = Vector2.new(0, 1),
-        BackgroundTransparency = 1
-    })
-    self.PaginationFrame.Parent = self.MainWindow
-
-    -- Criar abas para as páginas
-    self:UpdateTabs()
+    -- Alternar UI principal
+    library.MiniButton.MouseButton1Click:Connect(function()
+        library.MainWindow.Visible = not library.MainWindow.Visible
+    end)
 end
 
-function TuxRay:createPage(name)
-    local newPage = {
-        Name = name,
-        Elements = {},
-        CurrentPage = 1
-    }
-    
-    setmetatable(newPage, {__index = PageMethods})
-    table.insert(self.Pages, newPage)
-    
-    -- Se for a primeira página, definimos como atual
-    if #self.Pages == 1 then
-        self:SetPage(newPage)
-    end
-    
-    return newPage
+function TuxRay:CreateMainWindow()
+    library.MainWindow = Instance.new("Frame", library.MainUI)
+    library.MainWindow.Name = "MainWindow"
+    library.MainWindow.Size = UDim2.new(0, 500, 0, 400)
+    library.MainWindow.Position = UDim2.new(0.5, -250, 0.5, -200)
+    library.MainWindow.AnchorPoint = Vector2.new(0.5, 0.5)
+    library.MainWindow.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    library.MainWindow.BorderSizePixel = 0
+    library.MainWindow.ClipsDescendants = true
+    Instance.new("UICorner", library.MainWindow).CornerRadius = UDim.new(0, 12)
+
+    -- Barra de título
+    local titleBar = Instance.new("Frame", library.MainWindow)
+    titleBar.Size = UDim2.new(1, 0, 0, 36)
+    titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    titleBar.BorderSizePixel = 0
+    Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 12)
+
+    local title = Instance.new("TextLabel", titleBar)
+    title.Size = UDim2.new(1, -12, 1, 0)
+    title.Position = UDim2.new(0, 12, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "TuxRay"
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 24
+    title.TextColor3 = Color3.fromRGB(200, 200, 255)
+    title.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Área de abas
+    local tabContainer = Instance.new("Frame", library.MainWindow)
+    tabContainer.Size = UDim2.new(1, 0, 0, 40)
+    tabContainer.Position = UDim2.new(0, 0, 0, 36)
+    tabContainer.BackgroundTransparency = 1
+
+    -- Área de conteúdo
+    library.ContentArea = Instance.new("Frame", library.MainWindow)
+    library.ContentArea.Size = UDim2.new(1, -20, 1, -80)
+    library.ContentArea.Position = UDim2.new(0, 10, 0, 80)
+    library.ContentArea.BackgroundTransparency = 1
+    library.ContentArea.ClipsDescendants = true
+
+    -- Implementar abas e elementos aqui...
 end
 
-function TuxRay:SetPage(page)
-    if self.CurrentPage == page then return end
-    self.CurrentPage = page
-    self:RenderPage(page)
-end
-
-function TuxRay:RenderPage(page)
-    if not self.ContentFrame then return end
+-- Métodos para criar elementos
+function TuxRay:CreateButton(tab, options)
+    -- Implementação do botão
+    local button = Instance.new("TextButton")
+    button.Name = options.Name or "Button"
+    button.Text = options.Name or "Button"
+    button.Size = UDim2.new(1, -20, 0, 32)
+    button.Position = UDim2.new(0, 10, 0, #tab.Elements * 40 + 10)
+    button.BackgroundColor3 = Color3.fromRGB(60, 80, 120)
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.Font = Enum.Font.GothamMedium
+    button.TextSize = 14
+    button.Parent = library.ContentArea
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
     
-    -- Limpar elementos anteriores
-    for _, child in ipairs(self.ContentFrame:GetChildren()) do
-        child:Destroy()
-    end
-    
-    -- Calcular elementos para a página atual
-    local startIndex = (page.CurrentPage - 1) * self.ElementsPerPage + 1
-    local endIndex = math.min(#page.Elements, startIndex + self.ElementsPerPage - 1)
-    
-    -- Renderizar elementos
-    local yOffset = 0
-    for i = startIndex, endIndex do
-        local element = page.Elements[i]
-        if element.Type == "Toggle" then
-            local toggleFrame = self:CreateToggleElement(element)
-            toggleFrame.Position = UDim2.new(0, 0, 0, yOffset)
-            toggleFrame.Parent = self.ContentFrame
-            yOffset += 40 -- Espaçamento entre elementos
+    button.MouseButton1Click:Connect(function()
+        if options.Callback then
+            options.Callback()
         end
-    end
+    end)
     
-    -- Atualizar controles de paginação
-    self:UpdatePagination(page)
+    table.insert(tab.Elements, button)
 end
 
-function TuxRay:UpdatePagination(page)
-    if not self.PaginationFrame then return end
+function TuxRay:CreateToggle(tab, options)
+    -- Implementação do toggle
+    local toggle = Instance.new("TextButton")
+    toggle.Name = options.Name or "Toggle"
+    toggle.Text = (options.Default and "ON  | " or "OFF | ") .. (options.Name or "Toggle")
+    toggle.Size = UDim2.new(1, -20, 0, 32)
+    toggle.Position = UDim2.new(0, 10, 0, #tab.Elements * 40 + 10)
+    toggle.BackgroundColor3 = options.Default and Color3.fromRGB(36, 56, 46) or Color3.fromRGB(56, 36, 36)
+    toggle.TextColor3 = options.Default and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(255, 100, 100)
+    toggle.Font = Enum.Font.GothamMedium
+    toggle.TextSize = 14
+    toggle.AutoButtonColor = false
+    toggle.Parent = library.ContentArea
+    Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 8)
     
-    -- Limpar paginação anterior
-    for _, child in ipairs(self.PaginationFrame:GetChildren()) do
-        child:Destroy()
-    end
+    local state = options.Default or false
     
-    local totalPages = math.ceil(#page.Elements / self.ElementsPerPage)
-    if totalPages <= 1 then return end
+    toggle.MouseButton1Click:Connect(function()
+        state = not state
+        toggle.Text = (state and "ON  | " or "OFF | ") .. (options.Name or "Toggle")
+        toggle.TextColor3 = state and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(255, 100, 100)
+        toggle.BackgroundColor3 = state and Color3.fromRGB(36, 56, 46) or Color3.fromRGB(56, 36, 36)
+        
+        if options.Callback then
+            options.Callback(state)
+        end
+    end)
     
-    -- Container para números de página
-    local pageNumbers = CreateElement("Frame", {
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        Parent = self.PaginationFrame
-    })
-    
-    -- Calcular posição inicial para centralizar
-    local totalWidth = totalPages * 32
-    local startX = (self.PaginationFrame.AbsoluteSize.X - totalWidth) / 2
-    
-    for i = 1, totalPages do
-        local numBtn = CreateElement("TextButton", {
-            Text = tostring(i),
-            Size = UDim2.new(0, 32, 1, 0),
-            Position = UDim2.new(0, startX + (i-1)*32, 0, 0),
-            BackgroundColor3 = (i == page.CurrentPage) and Theme.PageNumberActive or Theme.PageNumber,
-            TextColor3 = Theme.TextColor,
-            Font = Enum.Font.GothamBold,
-            TextSize = 16,
-            Parent = pageNumbers
+    table.insert(tab.Elements, toggle)
+end
+
+-- Função de inicialização
+local function Initialize()
+    -- Notificação inicial
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "TuxRay Iniciado",
+            Text = "Biblioteca carregada com sucesso!",
+            Duration = 5
         })
-        Roundify(numBtn, 8)
-        
-        numBtn.MouseButton1Click:Connect(function()
-            if i ~= page.CurrentPage then
-                page.CurrentPage = i
-                self:RenderPage(page)
-            end
-        end)
-    end
-end
-
--- Elementos da UI no estilo exato do script
-function TuxRay:CreateToggleElement(elementInfo)
-    local frame = CreateElement("TextButton", {
-        Name = "Toggle_"..elementInfo.Name,
-        Size = UDim2.new(1, 0, 0, 32),
-        BackgroundColor3 = elementInfo.State and Theme.ToggleOn or Theme.ToggleOff,
-        Text = "",
-        AutoButtonColor = false
-    })
-    Roundify(frame, 8)
-    
-    -- Estado (ON/OFF)
-    local stateLabel = CreateElement("TextLabel", {
-        Text = elementInfo.State and "ON" or "OFF",
-        Size = UDim2.new(0, 35, 1, 0),
-        Position = UDim2.new(0, 10, 0, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = elementInfo.State and Color3.fromRGB(80,255,120) or Color3.fromRGB(255,100,100),
-        Font = Enum.Font.GothamBold,
-        TextSize = 16,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = frame
-    })
-    
-    -- Separador "|"
-    local separator = CreateElement("TextLabel", {
-        Text = "|",
-        Size = UDim2.new(0, 10, 1, 0),
-        Position = UDim2.new(0, 50, 0, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = Theme.Separator,
-        Font = Enum.Font.Gotham,
-        TextSize = 16,
-        Parent = frame
-    })
-    
-    -- Nome do toggle
-    local nameLabel = CreateElement("TextLabel", {
-        Text = elementInfo.Name,
-        Size = UDim2.new(1, -70, 1, 0),
-        Position = UDim2.new(0, 65, 0, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = Theme.TextColor,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Font = Enum.Font.Gotham,
-        TextSize = 16,
-        Parent = frame
-    })
-    
-    -- Atualizar quando o estado mudar
-    local function updateToggle(state)
-        elementInfo.State = state
-        stateLabel.Text = state and "ON" or "OFF"
-        stateLabel.TextColor3 = state and Color3.fromRGB(80,255,120) or Color3.fromRGB(255,100,100)
-        frame.BackgroundColor3 = state and Theme.ToggleOn or Theme.ToggleOff
-        
-        if elementInfo.Callback then
-            pcall(elementInfo.Callback, state)
-        end
-    end
-    
-    -- Toggle ao clicar
-    frame.MouseButton1Click:Connect(function()
-        updateToggle(not elementInfo.State)
     end)
     
-    return frame
+    return TuxRay
 end
 
-return TuxRay
+return Initialize()
