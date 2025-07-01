@@ -1,5 +1,5 @@
--- TuxRay Library v1.2
--- Com Splash Screen centralizado, Sistema de Bolinha e Paleta de Cores (Corrigido)
+-- TuxRay Library v2.0
+-- Solução definitiva para o problema da área de conteúdo
 
 local TuxRay = {}
 TuxRay.__index = TuxRay
@@ -27,16 +27,25 @@ local library = {
     Minimized = false,
     Config = {
         Color = COLOR_PALETTE.Default
-    },
-    UIReady = false
+    }
 }
+
+-- Método para garantir que a UI está pronta
+function TuxRay:EnsureUIReady()
+    if not library.MainUI then
+        self:CreateMainUI()
+    end
+    if not library.ContentArea then
+        self:CreateContentArea()
+    end
+    return true
+end
 
 -- Métodos públicos
 function TuxRay:CreateWindow(options)
     local window = {
         Tabs = {},
-        Options = options or {Name = "TuxRay"},
-        ElementsQueue = {}  -- Fila para elementos criados antes da UI estar pronta
+        Options = options or {Name = "TuxRay"}
     }
     
     table.insert(library.Windows, window)
@@ -50,7 +59,15 @@ function TuxRay:CreateWindow(options)
         end
     end
     
-    self:InitializeUI(window)
+    -- Criar splash screen
+    self:CreateSplashScreen()
+    
+    -- Criar UI principal após 3 segundos
+    task.delay(3, function()
+        self:DestroySplashScreen()
+        self:CreateMiniButton()
+        self:EnsureUIReady() -- Garantir que a UI está pronta
+    end)
     
     return setmetatable({
         CreateTab = function(_, tabOptions)
@@ -73,16 +90,8 @@ function TuxRay:CreateTab(window, options)
     table.insert(window.Tabs, tab)
     library.CurrentTab = tab
     
-    -- Se a UI estiver pronta, criar o botão de aba imediatamente
-    if library.UIReady then
-        self:CreateTabButton(tab.Options.Name)
-    else
-        -- Se não estiver pronta, adicionar à fila
-        table.insert(window.ElementsQueue, {
-            Type = "TabButton",
-            Name = tab.Options.Name
-        })
-    end
+    -- Criar botão de aba
+    self:CreateTabButton(tab.Options.Name)
     
     return setmetatable({
         CreateButton = function(_, buttonOptions)
@@ -98,37 +107,6 @@ function TuxRay:CreateTab(window, options)
 end
 
 -- Métodos internos
-function TuxRay:InitializeUI(window)
-    -- Criar splash screen
-    self:CreateSplashScreen()
-    
-    -- Criar a UI principal imediatamente (mas invisível)
-    self:CreateMainUI()
-    
-    -- Após 3 segundos, criar a bolinha e processar elementos na fila
-    task.delay(3, function()
-        self:DestroySplashScreen()
-        self:CreateMiniButton()
-        
-        -- Marcar UI como pronta
-        library.UIReady = true
-        
-        -- Processar elementos na fila
-        self:ProcessQueue(window)
-    end)
-end
-
-function TuxRay:ProcessQueue(window)
-    for _, item in ipairs(window.ElementsQueue) do
-        if item.Type == "TabButton" then
-            self:CreateTabButton(item.Name)
-        end
-    end
-    
-    -- Limpar fila
-    window.ElementsQueue = {}
-end
-
 function TuxRay:CreateSplashScreen()
     library.Splash = Instance.new("ScreenGui")
     library.Splash.Name = "TuxRaySplash"
@@ -193,8 +171,13 @@ function TuxRay:CreateMiniButton()
     library.MiniButton.BackgroundColor3 = Color3.fromRGB(60, 80, 120)
     library.MiniButton.BorderSizePixel = 0
     library.MiniButton.Text = ""
+    
+    -- Se a UI principal ainda não existe, crie-a
+    if not library.MainUI then
+        self:CreateMainUI()
+    end
+    
     library.MiniButton.Parent = library.MainUI
-    library.MiniButton.ZIndex = 20
     Instance.new("UICorner", library.MiniButton).CornerRadius = UDim.new(1, 0)
 
     -- Ícone da bolinha
@@ -203,7 +186,6 @@ function TuxRay:CreateMiniButton()
     icon.Size = UDim2.new(1, -8, 1, -8)
     icon.Position = UDim2.new(0, 4, 0, 4)
     icon.Image = "rbxassetid://138110497553919"
-    icon.ZIndex = 21
 
     -- Funcionalidade de arrastar
     local dragging, startPos, startGui
@@ -226,7 +208,9 @@ function TuxRay:CreateMiniButton()
 
     -- Alternar UI principal
     library.MiniButton.MouseButton1Click:Connect(function()
-        library.MainWindow.Visible = not library.MainWindow.Visible
+        if library.MainWindow then
+            library.MainWindow.Visible = not library.MainWindow.Visible
+        end
     end)
     
     -- Animação de entrada da bolinha
@@ -250,14 +234,22 @@ function TuxRay:CreateMiniButton()
 end
 
 function TuxRay:CreateMainUI()
-    -- Criação da UI principal (inicialmente invisível)
+    -- Criação da UI principal
     library.MainUI = Instance.new("ScreenGui")
     library.MainUI.Name = "TuxRayUI"
     library.MainUI.Parent = CoreGui
     library.MainUI.ResetOnSpawn = false
     library.MainUI.Enabled = true
 
-    -- Janela principal
+    -- Criar a janela principal
+    self:CreateMainWindow()
+    
+    -- Criar a área de conteúdo
+    self:CreateContentArea()
+end
+
+function TuxRay:CreateMainWindow()
+    -- Janela principal (inicialmente invisível)
     library.MainWindow = Instance.new("Frame", library.MainUI)
     library.MainWindow.Name = "MainWindow"
     library.MainWindow.Size = UDim2.new(0, 500, 0, 400)
@@ -266,7 +258,7 @@ function TuxRay:CreateMainUI()
     library.MainWindow.BackgroundColor3 = library.Config.Color
     library.MainWindow.BorderSizePixel = 0
     library.MainWindow.ClipsDescendants = true
-    library.MainWindow.Visible = false -- Inicialmente oculta
+    library.MainWindow.Visible = false
     Instance.new("UICorner", library.MainWindow).CornerRadius = UDim.new(0, 12)
 
     -- Barra de título (arrastável)
@@ -308,21 +300,6 @@ function TuxRay:CreateMainUI()
     library.TabContainer.Size = UDim2.new(1, -20, 0, 40)
     library.TabContainer.Position = UDim2.new(0, 10, 0, 40)
     library.TabContainer.BackgroundTransparency = 1
-
-    -- Área de conteúdo (CRIADA AGORA E DISPONÍVEL)
-    library.ContentArea = Instance.new("ScrollingFrame", library.MainWindow)
-    library.ContentArea.Name = "ContentArea"
-    library.ContentArea.Size = UDim2.new(1, -20, 1, -80)
-    library.ContentArea.Position = UDim2.new(0, 10, 0, 80)
-    library.ContentArea.BackgroundTransparency = 1
-    library.ContentArea.ClipsDescendants = true
-    library.ContentArea.ScrollBarThickness = 5
-    library.ContentArea.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    library.ContentArea.CanvasSize = UDim2.new(0, 0, 0, 0)
-    
-    local uiListLayout = Instance.new("UIListLayout", library.ContentArea)
-    uiListLayout.Padding = UDim.new(0, 10)
-    uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
     
     -- Funcionalidade de arrastar a janela
     local dragging, dragInput, dragStart, startPos
@@ -358,9 +335,30 @@ function TuxRay:CreateMainUI()
     end)
 end
 
+function TuxRay:CreateContentArea()
+    -- Área de conteúdo
+    library.ContentArea = Instance.new("ScrollingFrame", library.MainWindow)
+    library.ContentArea.Name = "ContentArea"
+    library.ContentArea.Size = UDim2.new(1, -20, 1, -80)
+    library.ContentArea.Position = UDim2.new(0, 10, 0, 80)
+    library.ContentArea.BackgroundTransparency = 1
+    library.ContentArea.ClipsDescendants = true
+    library.ContentArea.ScrollBarThickness = 5
+    library.ContentArea.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    library.ContentArea.CanvasSize = UDim2.new(0, 0, 0, 0)
+    
+    local uiListLayout = Instance.new("UIListLayout", library.ContentArea)
+    uiListLayout.Padding = UDim.new(0, 10)
+    uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+end
+
 function TuxRay:CreateTabButton(name)
     if not library.TabContainer then
-        warn("[TuxRay] Container de abas não encontrado!")
+        -- Se o container não estiver pronto, tentar novamente mais tarde
+        task.spawn(function()
+            wait(0.5)
+            self:CreateTabButton(name)
+        end)
         return
     end
     
@@ -401,10 +399,14 @@ function TuxRay:CreateButton(tab, options)
         return
     end
     
-    -- Se a área de conteúdo ainda não estiver pronta, adiar a criação
-    if not library.ContentArea then
-        warn("[TuxRay] Área de conteúdo não está pronta, adiando criação do botão: "..options.Name)
-        return self:DelayElementCreation(tab, "Button", options)
+    -- Garantir que a área de conteúdo está pronta
+    if not self:EnsureUIReady() or not library.ContentArea then
+        -- Se não estiver pronta, tentar novamente após um curto período
+        task.spawn(function()
+            wait(0.1)
+            self:CreateButton(tab, options)
+        end)
+        return
     end
     
     local button = Instance.new("TextButton")
@@ -444,10 +446,14 @@ function TuxRay:CreateToggle(tab, options)
         return
     end
     
-    -- Se a área de conteúdo ainda não estiver pronta, adiar a criação
-    if not library.ContentArea then
-        warn("[TuxRay] Área de conteúdo não está pronta, adiando criação do toggle: "..options.Name)
-        return self:DelayElementCreation(tab, "Toggle", options)
+    -- Garantir que a área de conteúdo está pronta
+    if not self:EnsureUIReady() or not library.ContentArea then
+        -- Se não estiver pronta, tentar novamente após um curto período
+        task.spawn(function()
+            wait(0.1)
+            self:CreateToggle(tab, options)
+        end)
+        return
     end
     
     local toggle = Instance.new("TextButton")
@@ -486,10 +492,14 @@ function TuxRay:CreateLabel(tab, options)
         return
     end
     
-    -- Se a área de conteúdo ainda não estiver pronta, adiar a criação
-    if not library.ContentArea then
-        warn("[TuxRay] Área de conteúdo não está pronta, adiando criação do label: "..options.Name)
-        return self:DelayElementCreation(tab, "Label", options)
+    -- Garantir que a área de conteúdo está pronta
+    if not self:EnsureUIReady() or not library.ContentArea then
+        -- Se não estiver pronta, tentar novamente após um curto período
+        task.spawn(function()
+            wait(0.1)
+            self:CreateLabel(tab, options)
+        end)
+        return
     end
     
     local label = Instance.new("TextLabel")
@@ -506,34 +516,6 @@ function TuxRay:CreateLabel(tab, options)
     
     table.insert(tab.Elements, label)
     return label
-end
-
--- Método para adiar a criação de elementos até que a UI esteja pronta
-function TuxRay:DelayElementCreation(tab, elementType, options)
-    if not tab or not elementType or not options then return end
-    
-    -- Adicionar à fila de criação
-    table.insert(tab.Elements, {
-        Type = elementType,
-        Options = options,
-        CreationTime = os.clock()
-    })
-    
-    -- Tentar criar novamente após um curto período
-    task.spawn(function()
-        while not library.ContentArea do
-            task.wait(0.1)
-        end
-        
-        -- Criar o elemento agora que a área de conteúdo está disponível
-        if elementType == "Button" then
-            self:CreateButton(tab, options)
-        elseif elementType == "Toggle" then
-            self:CreateToggle(tab, options)
-        elseif elementType == "Label" then
-            self:CreateLabel(tab, options)
-        end
-    end)
 end
 
 -- Função de inicialização
