@@ -1,21 +1,23 @@
--- TuxRay Library v1.0 - Sem Key System
--- Estilo Rayfield moderno com UI arrastável
+-- TuxRay Library v1.0
+-- Com Splash Screen, Sistema de Bolinha e Personalização de Cores
 
 local TuxRay = {}
 TuxRay.__index = TuxRay
 
 -- Serviços
 local CoreGui = game:GetService("CoreGui")
-local StarterGui = game:GetService("StarterGui")
 local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 -- Variáveis internas
 local library = {
     Windows = {},
     CurrentTab = nil,
-    Minimized = false
+    Minimized = false,
+    Config = {
+        Color = Color3.fromRGB(28, 28, 38) -- Cor padrão
+    }
 }
 
 -- Métodos públicos
@@ -26,7 +28,13 @@ function TuxRay:CreateWindow(options)
     }
     
     table.insert(library.Windows, window)
-    self:InitializeUI(window.Options)
+    
+    -- Aplicar configurações de cor se fornecidas
+    if options and options.Color then
+        library.Config.Color = options.Color
+    end
+    
+    self:InitializeUI()
     
     return setmetatable({
         CreateTab = function(_, tabOptions)
@@ -61,21 +69,143 @@ function TuxRay:CreateTab(window, options)
         end,
         CreateLabel = function(_, labelOptions)
             self:CreateLabel(tab, labelOptions)
-        end,
-        CreateSlider = function(_, sliderOptions)
-            self:CreateSlider(tab, sliderOptions)
         end
     }, self)
 end
 
 -- Métodos internos
-function TuxRay:InitializeUI(options)
-    -- Criar UI principal
-    self:CreateMainUI(options)
+function TuxRay:InitializeUI()
+    -- Criar splash screen
+    self:CreateSplashScreen()
+    
+    -- Após 3 segundos, criar a bolinha e a UI principal
+    task.delay(3, function()
+        self:DestroySplashScreen()
+        self:CreateMainUI()
+        self:CreateMiniButton()
+    end)
 end
 
-function TuxRay:CreateMainUI(options)
-    -- Criação da UI principal
+function TuxRay:CreateSplashScreen()
+    library.Splash = Instance.new("ScreenGui")
+    library.Splash.Name = "TuxRaySplash"
+    library.Splash.Parent = CoreGui
+    library.Splash.ResetOnSpawn = false
+    library.Splash.IgnoreGuiInset = true
+
+    -- Fundo preto
+    local background = Instance.new("Frame", library.Splash)
+    background.Size = UDim2.new(1, 0, 1, 0)
+    background.Position = UDim2.new(0, 0, 0, 0)
+    background.BackgroundColor3 = Color3.new(0, 0, 0)
+    background.ZIndex = 10
+
+    -- Label central
+    local splashLabel = Instance.new("TextLabel", background)
+    splashLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+    splashLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+    splashLabel.Size = UDim2.new(0, 300, 0, 100)
+    splashLabel.BackgroundTransparency = 1
+    splashLabel.Text = "TuxRay!"
+    splashLabel.TextColor3 = Color3.new(1, 1, 1)
+    splashLabel.Font = Enum.Font.GothamBold
+    splashLabel.TextSize = 48
+    splashLabel.ZIndex = 11
+    
+    -- Animação de entrada
+    splashLabel.TextTransparency = 1
+    local fadeIn = TweenService:Create(
+        splashLabel,
+        TweenInfo.new(0.5, Enum.EasingStyle.Quad),
+        {TextTransparency = 0}
+    )
+    fadeIn:Play()
+    
+    -- Animação de saída (após 2.5 segundos)
+    task.delay(2.5, function()
+        local fadeOut = TweenService:Create(
+            splashLabel,
+            TweenInfo.new(0.5, Enum.EasingStyle.Quad),
+            {TextTransparency = 1}
+        )
+        fadeOut:Play()
+    end)
+end
+
+function TuxRay:DestroySplashScreen()
+    if library.Splash and library.Splash.Parent then
+        library.Splash:Destroy()
+        library.Splash = nil
+    end
+end
+
+function TuxRay:CreateMiniButton()
+    -- Criar bolinha flutuante
+    library.MiniButton = Instance.new("TextButton")
+    library.MiniButton.Name = "MiniBtn"
+    library.MiniButton.Size = UDim2.new(0, 56, 0, 56)
+    library.MiniButton.Position = UDim2.new(0.5, -28, 0.5, -28)
+    library.MiniButton.BackgroundColor3 = Color3.fromRGB(60, 80, 120)
+    library.MiniButton.BorderSizePixel = 0
+    library.MiniButton.Text = ""
+    library.MiniButton.Parent = library.MainUI
+    library.MiniButton.ZIndex = 20
+    Instance.new("UICorner", library.MiniButton).CornerRadius = UDim.new(1, 0)
+
+    -- Ícone da bolinha
+    local icon = Instance.new("ImageLabel", library.MiniButton)
+    icon.BackgroundTransparency = 1
+    icon.Size = UDim2.new(1, -8, 1, -8)
+    icon.Position = UDim2.new(0, 4, 0, 4)
+    icon.Image = "rbxassetid://138110497553919"
+    icon.ZIndex = 21
+
+    -- Funcionalidade de arrastar
+    local dragging, startPos, startGui
+    library.MiniButton.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            startPos = library.MiniButton.Position
+            startGui = i.Position
+            i.Changed:Connect(function()
+                if i.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            library.MiniButton.Position = startPos + UDim2.new(0, i.Position.X - startGui.X, 0, i.Position.Y - startGui.Y)
+        end
+    end)
+
+    -- Alternar UI principal
+    library.MiniButton.MouseButton1Click:Connect(function()
+        library.MainWindow.Visible = not library.MainWindow.Visible
+    end)
+    
+    -- Animação de entrada da bolinha
+    library.MiniButton.BackgroundTransparency = 1
+    icon.ImageTransparency = 1
+    
+    local fadeIn = TweenService:Create(
+        library.MiniButton,
+        TweenInfo.new(0.5, Enum.EasingStyle.Quad),
+        {BackgroundTransparency = 0}
+    )
+    
+    local iconFadeIn = TweenService:Create(
+        icon,
+        TweenInfo.new(0.5, Enum.EasingStyle.Quad),
+        {ImageTransparency = 0}
+    )
+    
+    fadeIn:Play()
+    iconFadeIn:Play()
+end
+
+function TuxRay:CreateMainUI()
+    -- Criação da UI principal (inicialmente invisível)
     library.MainUI = Instance.new("ScreenGui")
     library.MainUI.Name = "TuxRayUI"
     library.MainUI.Parent = CoreGui
@@ -88,9 +218,10 @@ function TuxRay:CreateMainUI(options)
     library.MainWindow.Size = UDim2.new(0, 500, 0, 400)
     library.MainWindow.Position = UDim2.new(0.5, -250, 0.5, -200)
     library.MainWindow.AnchorPoint = Vector2.new(0.5, 0.5)
-    library.MainWindow.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    library.MainWindow.BackgroundColor3 = library.Config.Color
     library.MainWindow.BorderSizePixel = 0
     library.MainWindow.ClipsDescendants = true
+    library.MainWindow.Visible = false -- Inicialmente oculta
     Instance.new("UICorner", library.MainWindow).CornerRadius = UDim.new(0, 12)
 
     -- Barra de título (arrastável)
@@ -105,7 +236,7 @@ function TuxRay:CreateMainUI(options)
     title.Size = UDim2.new(1, -12, 1, 0)
     title.Position = UDim2.new(0, 12, 0, 0)
     title.BackgroundTransparency = 1
-    title.Text = options.Name or "TuxRay"
+    title.Text = "TuxRay"
     title.Font = Enum.Font.GothamBold
     title.TextSize = 24
     title.TextColor3 = Color3.fromRGB(200, 200, 255)
@@ -123,7 +254,7 @@ function TuxRay:CreateMainUI(options)
     closeButton.Font = Enum.Font.GothamBold
     
     closeButton.MouseButton1Click:Connect(function()
-        library.MainUI:Destroy()
+        library.MainWindow.Visible = false
     end)
 
     -- Área de abas
@@ -148,7 +279,7 @@ function TuxRay:CreateMainUI(options)
     uiListLayout.Padding = UDim.new(0, 10)
     uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
     
-    -- Funcionalidade de arrastar
+    -- Funcionalidade de arrastar a janela
     local dragging, dragInput, dragStart, startPos
     local function update(input)
         local delta = input.Position - dragStart
@@ -226,11 +357,11 @@ function TuxRay:CreateButton(tab, options)
     button.Name = options.Name
     button.Text = options.Name
     button.Size = UDim2.new(1, 0, 0, 32)
+    button.LayoutOrder = #library.ContentArea:GetChildren()
     button.BackgroundColor3 = Color3.fromRGB(60, 80, 120)
     button.TextColor3 = Color3.new(1, 1, 1)
     button.Font = Enum.Font.GothamMedium
     button.TextSize = 14
-    button.LayoutOrder = #library.ContentArea:GetChildren()
     button.Parent = library.ContentArea
     Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
     
@@ -309,92 +440,6 @@ function TuxRay:CreateLabel(tab, options)
     
     table.insert(tab.Elements, label)
     return label
-end
-
-function TuxRay:CreateSlider(tab, options)
-    if not options.Name or not options.Min or not options.Max or not options.Default or not options.Callback then
-        warn("[TuxRay] Slider precisa de nome, min, max, default e callback!")
-        return
-    end
-    
-    local sliderFrame = Instance.new("Frame")
-    sliderFrame.Name = options.Name.."Slider"
-    sliderFrame.Size = UDim2.new(1, 0, 0, 50)
-    sliderFrame.BackgroundTransparency = 1
-    sliderFrame.LayoutOrder = #library.ContentArea:GetChildren()
-    sliderFrame.Parent = library.ContentArea
-    
-    local label = Instance.new("TextLabel", sliderFrame)
-    label.Text = options.Name..": "..options.Default
-    label.Size = UDim2.new(1, 0, 0, 20)
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(170, 205, 255)
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local track = Instance.new("Frame", sliderFrame)
-    track.Name = "Track"
-    track.Size = UDim2.new(1, 0, 0, 6)
-    track.Position = UDim2.new(0, 0, 0, 25)
-    track.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    Instance.new("UICorner", track).CornerRadius = UDim.new(0, 3)
-    
-    local fill = Instance.new("Frame", track)
-    fill.Name = "Fill"
-    fill.Size = UDim2.new((options.Default - options.Min) / (options.Max - options.Min), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(60, 80, 120)
-    Instance.new("UICorner", fill).CornerRadius = UDim.new(0, 3)
-    
-    local thumb = Instance.new("Frame", track)
-    thumb.Name = "Thumb"
-    thumb.Size = UDim2.new(0, 12, 0, 12)
-    thumb.AnchorPoint = Vector2.new(0.5, 0.5)
-    thumb.Position = UDim2.new(fill.Size.X.Scale, 0, 0.5, 0)
-    thumb.BackgroundColor3 = Color3.fromRGB(200, 200, 255)
-    thumb.BorderSizePixel = 0
-    Instance.new("UICorner", thumb).CornerRadius = UDim.new(1, 0)
-    Instance.new("UIStroke", thumb).Color = Color3.fromRGB(100, 100, 140)
-    
-    local isDragging = false
-    local function updateSlider(input)
-        if not isDragging then return end
-        
-        local mousePos = Vector2.new(input.Position.X, input.Position.Y)
-        local relativeX = mousePos.X - track.AbsolutePosition.X
-        local percent = math.clamp(relativeX / track.AbsoluteSize.X, 0, 1)
-        local value = math.floor(options.Min + percent * (options.Max - options.Min))
-        
-        fill.Size = UDim2.new(percent, 0, 1, 0)
-        thumb.Position = UDim2.new(percent, 0, 0.5, 0)
-        label.Text = options.Name..": "..value
-        
-        if options.Callback then
-            options.Callback(value)
-        end
-    end
-    
-    thumb.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            isDragging = true
-        end
-    end)
-    
-    thumb.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            isDragging = false
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateSlider(input)
-        end
-    end)
-    
-    table.insert(tab.Elements, sliderFrame)
-    return sliderFrame
 end
 
 -- Função de inicialização
