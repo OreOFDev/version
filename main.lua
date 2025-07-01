@@ -1,5 +1,5 @@
 -- TuxRay Library v1.0
--- Com Splash Screen, Sistema de Bolinha e Personalização de Cores
+-- Com Splash Screen centralizado, Sistema de Bolinha e Paleta de Cores
 
 local TuxRay = {}
 TuxRay.__index = TuxRay
@@ -10,13 +10,23 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
+-- Mapeamento de cores
+local COLOR_PALETTE = {
+    White = Color3.fromRGB(255, 255, 255),
+    Black = Color3.fromRGB(0, 0, 0),
+    DarkPurple = Color3.fromRGB(64, 0, 64),
+    DarkBlue = Color3.fromRGB(0, 0, 100),
+    DarkRed = Color3.fromRGB(100, 0, 0),
+    Default = Color3.fromRGB(28, 28, 38)
+}
+
 -- Variáveis internas
 local library = {
     Windows = {},
     CurrentTab = nil,
     Minimized = false,
     Config = {
-        Color = Color3.fromRGB(28, 28, 38) -- Cor padrão
+        Color = COLOR_PALETTE.Default
     }
 }
 
@@ -31,7 +41,11 @@ function TuxRay:CreateWindow(options)
     
     -- Aplicar configurações de cor se fornecidas
     if options and options.Color then
-        library.Config.Color = options.Color
+        if type(options.Color) == "string" then
+            library.Config.Color = COLOR_PALETTE[options.Color] or COLOR_PALETTE.Default
+        else
+            library.Config.Color = options.Color
+        end
     end
     
     self:InitializeUI()
@@ -93,18 +107,20 @@ function TuxRay:CreateSplashScreen()
     library.Splash.ResetOnSpawn = false
     library.Splash.IgnoreGuiInset = true
 
-    -- Fundo preto
+    -- Fundo centralizado (não ocupa tela inteira)
     local background = Instance.new("Frame", library.Splash)
-    background.Size = UDim2.new(1, 0, 1, 0)
-    background.Position = UDim2.new(0, 0, 0, 0)
+    background.AnchorPoint = Vector2.new(0.5, 0.5)
+    background.Size = UDim2.new(0, 300, 0, 200)
+    background.Position = UDim2.new(0.5, 0, 0.5, 0)
     background.BackgroundColor3 = Color3.new(0, 0, 0)
     background.ZIndex = 10
+    Instance.new("UICorner", background).CornerRadius = UDim.new(0, 12)
 
     -- Label central
     local splashLabel = Instance.new("TextLabel", background)
     splashLabel.AnchorPoint = Vector2.new(0.5, 0.5)
     splashLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
-    splashLabel.Size = UDim2.new(0, 300, 0, 100)
+    splashLabel.Size = UDim2.new(0, 280, 0, 80)
     splashLabel.BackgroundTransparency = 1
     splashLabel.Text = "TuxRay!"
     splashLabel.TextColor3 = Color3.new(1, 1, 1)
