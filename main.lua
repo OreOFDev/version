@@ -1,5 +1,5 @@
--- TuxRay Library v1.0
--- Com Splash Screen centralizado, Sistema de Bolinha e Paleta de Cores
+-- TuxRay Library v1.1
+-- Com Splash Screen centralizado, Sistema de Bolinha e Paleta de Cores (Corrigido)
 
 local TuxRay = {}
 TuxRay.__index = TuxRay
@@ -27,7 +27,8 @@ local library = {
     Minimized = false,
     Config = {
         Color = COLOR_PALETTE.Default
-    }
+    },
+    ContentArea = nil
 }
 
 -- Métodos públicos
@@ -76,13 +77,13 @@ function TuxRay:CreateTab(window, options)
     
     return setmetatable({
         CreateButton = function(_, buttonOptions)
-            self:CreateButton(tab, buttonOptions)
+            return self:CreateButton(tab, buttonOptions)
         end,
         CreateToggle = function(_, toggleOptions)
-            self:CreateToggle(tab, toggleOptions)
+            return self:CreateToggle(tab, toggleOptions)
         end,
         CreateLabel = function(_, labelOptions)
-            self:CreateLabel(tab, labelOptions)
+            return self:CreateLabel(tab, labelOptions)
         end
     }, self)
 end
@@ -280,7 +281,7 @@ function TuxRay:CreateMainUI()
     library.TabContainer.Position = UDim2.new(0, 10, 0, 40)
     library.TabContainer.BackgroundTransparency = 1
 
-    -- Área de conteúdo
+    -- Área de conteúdo (agora armazenada em library.ContentArea)
     library.ContentArea = Instance.new("ScrollingFrame", library.MainWindow)
     library.ContentArea.Name = "ContentArea"
     library.ContentArea.Size = UDim2.new(1, -20, 1, -80)
@@ -362,10 +363,16 @@ function TuxRay:CreateTabButton(name)
     end
 end
 
--- Métodos para criar elementos
+-- Métodos para criar elementos (CORRIGIDOS)
 function TuxRay:CreateButton(tab, options)
     if not options.Name then
         warn("[TuxRay] Button precisa de um nome!")
+        return
+    end
+    
+    -- Verificar se a área de conteúdo existe
+    if not library.ContentArea then
+        warn("[TuxRay] Área de conteúdo não encontrada!")
         return
     end
     
@@ -406,6 +413,12 @@ function TuxRay:CreateToggle(tab, options)
         return
     end
     
+    -- Verificar se a área de conteúdo existe
+    if not library.ContentArea then
+        warn("[TuxRay] Área de conteúdo não encontrada!")
+        return
+    end
+    
     local toggle = Instance.new("TextButton")
     toggle.Name = options.Name
     toggle.Text = (options.Default and "ON  | " or "OFF | ") .. options.Name
@@ -439,6 +452,12 @@ end
 function TuxRay:CreateLabel(tab, options)
     if not options.Name then
         warn("[TuxRay] Label precisa de um texto!")
+        return
+    end
+    
+    -- Verificar se a área de conteúdo existe
+    if not library.ContentArea then
+        warn("[TuxRay] Área de conteúdo não encontrada!")
         return
     end
     
