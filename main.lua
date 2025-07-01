@@ -1,20 +1,22 @@
--- TuxRay Library (Versão Corrigida)
+-- TuxRay UI Library
 local TuxRay = {}
 TuxRay.__index = TuxRay
 TuxRay.ElementsPerPage = 6 -- Padrão: 6 elementos por página
 
--- Cores e temas
+-- Cores e temas baseado no estilo "oRee Scripter X Brainrot"
 local Theme = {
-    Background = Color3.fromRGB(28, 28, 28),
-    Header = Color3.fromRGB(22, 22, 22),
-    TextColor = Color3.fromRGB(255, 255, 255),
-    ElementBackground = Color3.fromRGB(35, 35, 35),
-    ToggleOff = Color3.fromRGB(70, 70, 70),
-    ToggleOn = Color3.fromRGB(0, 170, 255),
-    Button = Color3.fromRGB(45, 45, 45),
-    ButtonHover = Color3.fromRGB(60, 60, 60),
+    Background = Color3.fromRGB(28, 28, 38),
+    Header = Color3.fromRGB(20, 20, 30),
+    TextColor = Color3.fromRGB(200, 200, 255),
+    ElementBackground = Color3.fromRGB(36, 36, 46),
+    ToggleOff = Color3.fromRGB(56, 36, 36),
+    ToggleOn = Color3.fromRGB(36, 56, 46),
+    Button = Color3.fromRGB(36, 56, 46),
+    ButtonHover = Color3.fromRGB(46, 66, 56),
     Accent = Color3.fromRGB(0, 170, 255),
-    DisabledText = Color3.fromRGB(150, 150, 150)
+    DisabledText = Color3.fromRGB(150, 150, 150),
+    PageNumber = Color3.fromRGB(46, 46, 66),
+    PageNumberActive = Color3.fromRGB(0, 170, 255)
 }
 
 -- Funções utilitárias
@@ -63,11 +65,14 @@ function TuxRay.new()
     self.Pages = {}
     self.CurrentPage = nil
     self.Gui = nil
+    self.Title = "oRee Scripter X Brainrot" -- Título padrão
     return self
 end
 
 function TuxRay:CreateWindow(options)
     options = options or {}
+    self.Title = options.Title or self.Title -- Permite customização do título
+    self.Site = options.Site or "https://oreofdev.github.io/Sw1ftSync/tuxray"
     
     -- ScreenGui principal
     self.Gui = CreateElement("ScreenGui", {
@@ -77,12 +82,12 @@ function TuxRay:CreateWindow(options)
     })
     
     -- Splash Screen
-    self:SplashScreen(options)
+    self:SplashScreen()
     
     return self
 end
 
-function TuxRay:SplashScreen(options)
+function TuxRay:SplashScreen()
     local splash = CreateElement("Frame", {
         Name = "SplashScreen",
         Size = UDim2.new(1, 0, 1, 0),
@@ -104,7 +109,7 @@ function TuxRay:SplashScreen(options)
     title.Parent = splash
 
     local website = CreateElement("TextLabel", {
-        Text = options.Site or "https://oreofdev.github.io/Sw1ftSync/tuxray",
+        Text = self.Site,
         TextSize = 18,
         Font = Enum.Font.Gotham,
         TextColor3 = Theme.TextColor,
@@ -149,9 +154,9 @@ function TuxRay:CreateMainUI()
     Roundify(header, {topLeft = 8, topRight = 8})
     header.Parent = self.MainWindow
 
-    -- Título da janela
+    -- Título da janela (usando o título configurado)
     local windowTitle = CreateElement("TextLabel", {
-        Text = "oRee Scripter X Brainrot",
+        Text = self.Title,
         TextSize = 18,
         Font = Enum.Font.GothamBold,
         TextColor3 = Theme.TextColor,
@@ -298,8 +303,7 @@ function TuxRay:UpdatePagination(page)
     local prevBtn = CreateElement("TextButton", {
         Text = "<",
         Size = UDim2.new(0, 30, 1, 0),
-        Position = UDim2.new(0.5, -40, 0, 0),
-        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
         BackgroundColor3 = Theme.Button,
         TextColor3 = Theme.TextColor,
         Font = Enum.Font.GothamBold
@@ -311,7 +315,7 @@ function TuxRay:UpdatePagination(page)
     local pageLabel = CreateElement("TextLabel", {
         Text = page.CurrentPage.."/"..totalPages,
         Size = UDim2.new(0, 60, 1, 0),
-        Position = UDim2.new(0.5, 0, 0, 0),
+        Position = UDim2.new(0.5, -30, 0, 0),
         AnchorPoint = Vector2.new(0.5, 0),
         BackgroundTransparency = 1,
         TextColor3 = Theme.TextColor,
@@ -323,7 +327,8 @@ function TuxRay:UpdatePagination(page)
     local nextBtn = CreateElement("TextButton", {
         Text = ">",
         Size = UDim2.new(0, 30, 1, 0),
-        Position = UDim2.new(0.5, 10, 0, 0),
+        Position = UDim2.new(1, -30, 0, 0),
+        AnchorPoint = Vector2.new(1, 0),
         BackgroundColor3 = Theme.Button,
         TextColor3 = Theme.TextColor,
         Font = Enum.Font.GothamBold
@@ -349,7 +354,8 @@ function TuxRay:UpdatePagination(page)
     -- Números de página (1 2 3 4 5 6)
     local pageNumbersFrame = CreateElement("Frame", {
         Size = UDim2.new(0, 180, 1, 0),
-        Position = UDim2.new(0.5, 20, 0, 0),
+        Position = UDim2.new(0.5, -90, 0, 0),
+        AnchorPoint = Vector2.new(0.5, 0),
         BackgroundTransparency = 1
     })
     pageNumbersFrame.Parent = self.PaginationFrame
@@ -358,8 +364,8 @@ function TuxRay:UpdatePagination(page)
         local numBtn = CreateElement("TextButton", {
             Text = tostring(i),
             Size = UDim2.new(0, 20, 1, 0),
-            Position = UDim2.new(0, (i-1)*25, 0, 0),
-            BackgroundColor3 = (i == page.CurrentPage) and Theme.Accent or Theme.Button,
+            Position = UDim2.new(0, (i-1)*30, 0, 0),
+            BackgroundColor3 = (i == page.CurrentPage) and Theme.PageNumberActive or Theme.PageNumber,
             TextColor3 = Theme.TextColor,
             Font = Enum.Font.Gotham,
             TextSize = 14
@@ -376,7 +382,7 @@ function TuxRay:UpdatePagination(page)
     end
 end
 
--- Elementos da UI
+-- Elementos da UI no estilo "oRee Scripter"
 function TuxRay:CreateToggleElement(elementInfo)
     local frame = CreateElement("Frame", {
         Name = "Toggle_"..elementInfo.Name,
@@ -385,78 +391,68 @@ function TuxRay:CreateToggleElement(elementInfo)
     })
     Roundify(frame, 5)
     
-    local label = CreateElement("TextLabel", {
+    -- Prefixo do estado (OFF/ON) em destaque
+    local statePrefix = elementInfo.State and "ON" or "OFF"
+    local stateColor = elementInfo.State and Color3.fromRGB(80,255,120) or Color3.fromRGB(255,100,100)
+    
+    local stateLabel = CreateElement("TextLabel", {
+        Text = statePrefix,
+        Size = UDim2.new(0, 40, 0, 20),
+        Position = UDim2.new(0, 10, 0.5, 0),
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundTransparency = 1,
+        TextColor3 = stateColor,
+        Font = Enum.Font.GothamBold,
+        TextSize = 14
+    })
+    stateLabel.Parent = frame
+    
+    -- Separador "|"
+    local separator = CreateElement("TextLabel", {
+        Text = "|",
+        Size = UDim2.new(0, 10, 0, 20),
+        Position = UDim2.new(0, 55, 0.5, 0),
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundTransparency = 1,
+        TextColor3 = Theme.DisabledText,
+        Font = Enum.Font.Gotham,
+        TextSize = 14
+    })
+    separator.Parent = frame
+    
+    -- Nome do toggle
+    local nameLabel = CreateElement("TextLabel", {
         Text = elementInfo.Name,
-        Size = UDim2.new(0.7, 0, 1, 0),
-        Position = UDim2.new(0, 15, 0, 0),
+        Size = UDim2.new(0.7, 0, 0, 20),
+        Position = UDim2.new(0, 70, 0.5, 0),
+        AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         TextColor3 = elementInfo.Enabled and Theme.TextColor or Theme.DisabledText,
         TextXAlignment = Enum.TextXAlignment.Left,
         Font = Enum.Font.Gotham,
         TextSize = 14
     })
-    label.Parent = frame
+    nameLabel.Parent = frame
     
-    local statusLabel = CreateElement("TextLabel", {
-        Text = elementInfo.State and "ON" or "OFF",
-        Size = UDim2.new(0, 40, 1, 0),
-        Position = UDim2.new(1, -70, 0, 0),
-        AnchorPoint = Vector2.new(1, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = elementInfo.State and Theme.ToggleOn or Theme.DisabledText,
-        Font = Enum.Font.GothamBold,
-        TextSize = 14
-    })
-    statusLabel.Parent = frame
-    
-    local toggleFrame = CreateElement("Frame", {
-        Size = UDim2.new(0, 50, 0, 25),
-        Position = UDim2.new(1, -15, 0.5, 0),
-        AnchorPoint = Vector2.new(1, 0.5),
-        BackgroundColor3 = elementInfo.State and Theme.ToggleOn or Theme.ToggleOff
-    })
-    Roundify(toggleFrame, 12)
-    toggleFrame.Parent = frame
-    
-    local toggleCircle = CreateElement("Frame", {
-        Size = UDim2.new(0, 21, 0, 21),
-        Position = elementInfo.State and UDim2.new(1, -23, 0.5, 0) or UDim2.new(0, 2, 0.5, 0),
-        AnchorPoint = Vector2.new(0, 0.5),
-        BackgroundColor3 = Color3.new(1, 1, 1)
-    })
-    Roundify(toggleCircle, 10)
-    toggleCircle.Parent = toggleFrame
-    
+    -- Atualizar quando o estado mudar
     local function updateToggle(state)
         elementInfo.State = state
-        statusLabel.Text = state and "ON" or "OFF"
-        statusLabel.TextColor3 = state and Theme.ToggleOn or Theme.DisabledText
-        toggleFrame.BackgroundColor3 = state and Theme.ToggleOn or Theme.ToggleOff
-        
-        local tween = game:GetService("TweenService"):Create(
-            toggleCircle,
-            TweenInfo.new(0.2),
-            {Position = state and UDim2.new(1, -23, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)}
-        )
-        tween:Play()
+        statePrefix = state and "ON" or "OFF"
+        stateColor = state and Color3.fromRGB(80,255,120) or Color3.fromRGB(255,100,100)
+        stateLabel.Text = statePrefix
+        stateLabel.TextColor3 = stateColor
         
         if elementInfo.Callback then
             pcall(elementInfo.Callback, state)
         end
     end
     
-    toggleFrame.MouseButton1Click:Connect(function()
+    -- Toggle ao clicar em qualquer lugar do frame
+    frame.MouseButton1Click:Connect(function()
         if elementInfo.Enabled then
             updateToggle(not elementInfo.State)
         end
     end)
-    
-    -- Se o elemento estiver desativado, aplicar estilo
-    if not elementInfo.Enabled then
-        label.TextColor3 = Theme.DisabledText
-        toggleFrame.BackgroundTransparency = 0.5
-        toggleCircle.BackgroundTransparency = 0.5
-    end
     
     return frame
 end
@@ -467,7 +463,7 @@ function TuxRay:CreateButtonElement(elementInfo)
         Text = elementInfo.Name,
         Size = UDim2.new(1, 0, 0, 35),
         BackgroundColor3 = elementInfo.Enabled and Theme.Button or Theme.ElementBackground,
-        TextColor3 = elementInfo.Enabled and Theme.TextColor or Theme.DisabledText,
+        TextColor3 = elementInfo.Enabled and Color3.fromRGB(80,255,120) or Theme.DisabledText,
         Font = Enum.Font.Gotham,
         TextSize = 14
     })
