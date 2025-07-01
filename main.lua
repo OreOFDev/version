@@ -107,7 +107,7 @@ function TuxRay:CreateTab(window, options)
         CreateLabel = function(_, labelOptions)
             return self:CreateLabel(tab, labelOptions)
         end,
-        CreateSlider = function(_, sliderOptions) -- NOVO: Método para criar slider
+        CreateSlider = function(_, sliderOptions)
             return self:CreateSlider(tab, sliderOptions)
         end
     }, self)
@@ -133,8 +133,8 @@ function TuxRay:CreateSplashScreen()
     -- Label central
     local splashLabel = Instance.new("TextLabel", background)
     splashLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-    splashLabel.Position = UDim2.new(0.5, 0, 0.4, 0) -- Ajustado para cima
-    splashLabel.Size = UDim2.new(0, 280, 0, 60) -- Tamanho ajustado
+    splashLabel.Position = UDim2.new(0.5, 0, 0.4, 0)
+    splashLabel.Size = UDim2.new(0, 280, 0, 60)
     splashLabel.BackgroundTransparency = 1
     splashLabel.Text = "TuxRay!"
     splashLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -142,10 +142,10 @@ function TuxRay:CreateSplashScreen()
     splashLabel.TextSize = 48
     splashLabel.ZIndex = 11
     
-    -- Link do GitHub (adicionado conforme solicitado)
+    -- Link do GitHub
     local githubLabel = Instance.new("TextLabel", background)
     githubLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-    githubLabel.Position = UDim2.new(0.5, 0, 0.65, 0) -- Posicionado abaixo
+    githubLabel.Position = UDim2.new(0.5, 0, 0.65, 0)
     githubLabel.Size = UDim2.new(0, 280, 0, 30)
     githubLabel.BackgroundTransparency = 1
     githubLabel.Text = "https://github.com/OreOFDev/TuxRay/"
@@ -243,10 +243,15 @@ function TuxRay:CreateMiniButton()
         end
     end)
 
-    -- Alternar UI principal
+    -- Alternar UI principal e centralizar
     library.MiniButton.MouseButton1Click:Connect(function()
         if library.MainWindow then
             library.MainWindow.Visible = not library.MainWindow.Visible
+            
+            -- CORREÇÃO: Centralizar a janela quando aberta
+            if library.MainWindow.Visible then
+                library.MainWindow.Position = UDim2.new(0.5, -250, 0.5, -200)
+            end
         end
     end)
     
@@ -289,7 +294,7 @@ function TuxRay:CreateMainWindow()
     -- Janela principal (inicialmente invisível)
     library.MainWindow = Instance.new("Frame", library.MainUI)
     library.MainWindow.Name = "MainWindow"
-    library.MainWindow.Size = UDim2.new(0, 500, 0, 450) -- Altura aumentada
+    library.MainWindow.Size = UDim2.new(0, 500, 0, 450)
     library.MainWindow.Position = UDim2.new(0.5, -250, 0.5, -225)
     library.MainWindow.AnchorPoint = Vector2.new(0.5, 0.5)
     library.MainWindow.BackgroundColor3 = library.Config.Color
@@ -376,8 +381,8 @@ function TuxRay:CreateContentArea()
     -- Área de conteúdo
     library.ContentArea = Instance.new("ScrollingFrame", library.MainWindow)
     library.ContentArea.Name = "ContentArea"
-    library.ContentArea.Size = UDim2.new(1, -20, 1, -90) -- Altura ajustada
-    library.ContentArea.Position = UDim2.new(0, 10, 0, 85) -- Posição ajustada
+    library.ContentArea.Size = UDim2.new(1, -20, 1, -90)
+    library.ContentArea.Position = UDim2.new(0, 10, 0, 85)
     library.ContentArea.BackgroundTransparency = 1
     library.ContentArea.ClipsDescendants = true
     library.ContentArea.ScrollBarThickness = 5
@@ -391,7 +396,6 @@ end
 
 function TuxRay:CreateTabButton(name)
     if not library.TabContainer then
-        -- Se o container não estiver pronto, tentar novamente mais tarde
         task.spawn(function()
             wait(0.5)
             self:CreateTabButton(name)
@@ -412,18 +416,15 @@ function TuxRay:CreateTabButton(name)
     
     -- Funcionalidade de seleção de aba
     tabButton.MouseButton1Click:Connect(function()
-        -- Atualizar todas as abas
         for _, child in ipairs(library.TabContainer:GetChildren()) do
             if child:IsA("TextButton") then
                 child.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
             end
         end
         
-        -- Destacar aba selecionada
         tabButton.BackgroundColor3 = COLOR_PALETTE.Accent
     end)
     
-    -- Selecionar primeira aba por padrão
     if #library.TabContainer:GetChildren() == 1 then
         tabButton.BackgroundColor3 = COLOR_PALETTE.Accent
     end
@@ -431,14 +432,9 @@ end
 
 -- Métodos para criar elementos
 function TuxRay:CreateButton(tab, options)
-    if not options.Name then
-        warn("[TuxRay] Button precisa de um nome!")
-        return
-    end
+    if not options.Name then return end
     
-    -- Garantir que a área de conteúdo está pronta
     if not self:EnsureUIReady() or not library.ContentArea then
-        -- Se não estiver pronta, tentar novamente após um curto período
         task.spawn(function()
             wait(0.1)
             self:CreateButton(tab, options)
@@ -464,7 +460,6 @@ function TuxRay:CreateButton(tab, options)
         end
     end)
     
-    -- Efeito hover
     button.MouseEnter:Connect(function()
         button.BackgroundColor3 = Color3.fromRGB(100, 140, 200)
     end)
@@ -478,14 +473,9 @@ function TuxRay:CreateButton(tab, options)
 end
 
 function TuxRay:CreateToggle(tab, options)
-    if not options.Name then
-        warn("[TuxRay] Toggle precisa de um nome!")
-        return
-    end
+    if not options.Name then return end
     
-    -- Garantir que a área de conteúdo está pronta
     if not self:EnsureUIReady() or not library.ContentArea then
-        -- Se não estiver pronta, tentar novamente após um curto período
         task.spawn(function()
             wait(0.1)
             self:CreateToggle(tab, options)
@@ -524,14 +514,9 @@ function TuxRay:CreateToggle(tab, options)
 end
 
 function TuxRay:CreateLabel(tab, options)
-    if not options.Name then
-        warn("[TuxRay] Label precisa de um texto!")
-        return
-    end
+    if not options.Name then return end
     
-    -- Garantir que a área de conteúdo está pronta
     if not self:EnsureUIReady() or not library.ContentArea then
-        -- Se não estiver pronta, tentar novamente após um curto período
         task.spawn(function()
             wait(0.1)
             self:CreateLabel(tab, options)
@@ -555,19 +540,10 @@ function TuxRay:CreateLabel(tab, options)
     return label
 end
 
--- NOVO: Método para criar slider
 function TuxRay:CreateSlider(tab, options)
-    if not options.Name then
-        warn("[TuxRay] Slider precisa de um nome!")
-        return
-    end
+    if not options.Name then return end
+    if not options.Min or not options.Max then return end
     
-    if not options.Min or not options.Max then
-        warn("[TuxRay] Slider precisa de valores Min e Max!")
-        return
-    end
-    
-    -- Garantir que a área de conteúdo está pronta
     if not self:EnsureUIReady() or not library.ContentArea then
         task.spawn(function()
             wait(0.1)
@@ -630,7 +606,6 @@ function TuxRay:CreateSlider(tab, options)
     -- Função para atualizar o valor do slider
     local function setValue(value)
         value = math.clamp(value, options.Min, options.Max)
-        -- Arredondar conforme a precisão
         value = tonumber(string.format("%."..precision.."f", value))
         
         fill.Size = UDim2.new((value - options.Min) / (options.Max - options.Min), 0, 1, 0)
