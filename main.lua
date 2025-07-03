@@ -287,9 +287,9 @@ function TuxRay:SwitchTab(tab)
     self.CurrentTab = tab
 end
 
--- Adicionar uma seção à aba atual
-function TuxRay:AddSection(name)
-    if not self.CurrentTab then return end
+-- CORREÇÃO DO ERRO: Função AddSection corrigida
+function TuxRay:AddSection(tab, name)
+    if not tab then return end
     
     local section = {
         Name = name,
@@ -300,8 +300,8 @@ function TuxRay:AddSection(name)
         Name = name.."Section",
         Size = UDim2.new(1, 0, 0, 0),
         BackgroundTransparency = 1,
-        LayoutOrder = #self.CurrentTab.Sections + 1,
-        Parent = self.CurrentTab.ContentFrame
+        LayoutOrder = #tab.Sections + 1,
+        Parent = tab.ContentFrame
     })
     
     local sectionTitle = createElement("TextLabel", {
@@ -332,7 +332,7 @@ function TuxRay:AddSection(name)
     
     section.Frame = sectionFrame
     section.ElementsFrame = sectionElements
-    table.insert(self.CurrentTab.Sections, section)
+    table.insert(tab.Sections, section)
     
     return section
 end
