@@ -1,360 +1,163 @@
--- TuxRay Library v2.1
--- Solução definitiva para o problema da área de conteúdo
--- GitHub: https://github.com/OreOFDev/TuxRay/
+-- TuxRay UI Library
+-- By oRee Scripter
 
 local TuxRay = {}
 TuxRay.__index = TuxRay
 
--- Serviços
+-- Serviços necessários
 local CoreGui = game:GetService("CoreGui")
-local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
--- Mapeamento de cores
-local COLOR_PALETTE = {
-    White = Color3.fromRGB(255, 255, 255),
-    Black = Color3.fromRGB(0, 0, 0),
-    DarkPurple = Color3.fromRGB(64, 0, 64),
-    DarkBlue = Color3.fromRGB(0, 0, 100),
-    DarkRed = Color3.fromRGB(100, 0, 0),
-    Default = Color3.fromRGB(28, 28, 38),
-    Accent = Color3.fromRGB(80, 120, 200),
-    SliderTrack = Color3.fromRGB(40, 40, 50),
-    SliderFill = Color3.fromRGB(60, 80, 120)
-}
+-- Constantes
+local ACCENT_COLOR = Color3.fromRGB(110, 200, 255)
+local BACKGROUND_COLOR = Color3.fromRGB(28, 28, 38)
+local ELEMENT_COLOR = Color3.fromRGB(46, 46, 66)
+local TEXT_COLOR = Color3.fromRGB(220, 220, 255)
 
--- Variáveis internas
-local library = {
-    Windows = {},
-    CurrentTab = nil,
-    Minimized = false,
-    Config = {
-        Color = COLOR_PALETTE.Default
-    }
-}
-
--- Método para garantir que a UI está pronta
-function TuxRay:EnsureUIReady()
-    if not library.MainUI then
-        self:CreateMainUI()
+-- Função para criar elementos com propriedades comuns
+local function createElement(className, properties)
+    local element = Instance.new(className)
+    for prop, value in pairs(properties) do
+        element[prop] = value
     end
-    if not library.ContentArea then
-        self:CreateContentArea()
-    end
-    return true
+    return element
 end
 
--- Métodos públicos
-function TuxRay:CreateWindow(options)
-    local window = {
-        Tabs = {},
-        Options = options or {Name = "TuxRay"}
-    }
-    
-    table.insert(library.Windows, window)
-    
-    -- Aplicar configurações de cor se fornecidas
-    if options and options.Color then
-        if type(options.Color) == "string" then
-            library.Config.Color = COLOR_PALETTE[options.Color] or COLOR_PALETTE.Default
-        else
-            library.Config.Color = options.Color
-        end
-    end
-    
-    -- Criar splash screen
-    self:CreateSplashScreen()
-    
-    -- Criar UI principal após 3 segundos
-    task.delay(3, function()
-        self:DestroySplashScreen()
-        self:CreateMiniButton()
-        self:EnsureUIReady() -- Garantir que a UI está pronta
-    end)
-    
-    return setmetatable({
-        CreateTab = function(_, tabOptions)
-            return self:CreateTab(window, tabOptions)
-        end
-    }, self)
+-- Função para criar cantos arredondados
+local function createCorner(parent, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius or 8)
+    corner.Parent = parent
+    return corner
 end
 
-function TuxRay:CreateTab(window, options)
-    if not options.Name then
-        warn("[TuxRay] Tab precisa de um nome!")
-        return
-    end
-    
-    local tab = {
-        Elements = {},
-        Options = options
-    }
-    
-    table.insert(window.Tabs, tab)
-    library.CurrentTab = tab
-    
-    -- Criar botão de aba
-    self:CreateTabButton(tab.Options.Name)
-    
-    return setmetatable({
-        CreateButton = function(_, buttonOptions)
-            return self:CreateButton(tab, buttonOptions)
-        end,
-        CreateToggle = function(_, toggleOptions)
-            return self:CreateToggle(tab, toggleOptions)
-        end,
-        CreateLabel = function(_, labelOptions)
-            return self:CreateLabel(tab, labelOptions)
-        end,
-        CreateSlider = function(_, sliderOptions)
-            return self:CreateSlider(tab, sliderOptions)
-        end
-    }, self)
+-- Função para criar sombra
+local function createShadow(parent)
+    local shadow = createElement("ImageLabel", {
+        Name = "Shadow",
+        Image = "rbxassetid://1316045217",
+        ImageColor3 = Color3.new(0, 0, 0),
+        ImageTransparency = 0.8,
+        ScaleType = Enum.ScaleType.Slice,
+        SliceCenter = Rect.new(10, 10, 118, 118),
+        Size = UDim2.new(1, 10, 1, 10),
+        Position = UDim2.new(0, -5, 0, -5),
+        BackgroundTransparency = 1,
+        ZIndex = -1
+    })
+    shadow.Parent = parent
+    return shadow
 end
 
--- Métodos internos
-function TuxRay:CreateSplashScreen()
-    library.Splash = Instance.new("ScreenGui")
-    library.Splash.Name = "TuxRaySplash"
-    library.Splash.Parent = CoreGui
-    library.Splash.ResetOnSpawn = false
-    library.Splash.IgnoreGuiInset = true
-
-    -- Fundo centralizado
-    local background = Instance.new("Frame", library.Splash)
-    background.AnchorPoint = Vector2.new(0.5, 0.5)
-    background.Size = UDim2.new(0, 300, 0, 200)
-    background.Position = UDim2.new(0.5, 0, 0.5, 0)
-    background.BackgroundColor3 = Color3.new(0, 0, 0)
-    background.ZIndex = 10
-    Instance.new("UICorner", background).CornerRadius = UDim.new(0, 12)
-
-    -- Label central
-    local splashLabel = Instance.new("TextLabel", background)
-    splashLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-    splashLabel.Position = UDim2.new(0.5, 0, 0.4, 0)
-    splashLabel.Size = UDim2.new(0, 280, 0, 60)
-    splashLabel.BackgroundTransparency = 1
-    splashLabel.Text = "TuxRay!"
-    splashLabel.TextColor3 = Color3.new(1, 1, 1)
-    splashLabel.Font = Enum.Font.GothamBold
-    splashLabel.TextSize = 48
-    splashLabel.ZIndex = 11
+-- Cria uma nova janela TuxRay
+function TuxRay.new(options)
+    options = options or {}
     
-    -- Link do GitHub
-    local githubLabel = Instance.new("TextLabel", background)
-    githubLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-    githubLabel.Position = UDim2.new(0.5, 0, 0.65, 0)
-    githubLabel.Size = UDim2.new(0, 280, 0, 30)
-    githubLabel.BackgroundTransparency = 1
-    githubLabel.Text = "https://github.com/OreOFDev/TuxRay/"
-    githubLabel.TextColor3 = Color3.fromRGB(170, 205, 255)
-    githubLabel.Font = Enum.Font.Gotham
-    githubLabel.TextSize = 14
-    githubLabel.ZIndex = 11
+    local self = setmetatable({}, TuxRay)
     
-    -- Animação de entrada
-    splashLabel.TextTransparency = 1
-    githubLabel.TextTransparency = 1
+    self.Name = options.Name or "TuxRay UI"
+    self.Size = options.Size or UDim2.new(0, 500, 0, 400)
+    self.Position = options.Position or UDim2.new(0.5, 0, 0.5, 0)
+    self.AnchorPoint = Vector2.new(0.5, 0.5)
+    self.Theme = options.Theme or "Dark"
+    self.ToggleKey = options.ToggleKey or Enum.KeyCode.Insert
     
-    local fadeIn = TweenService:Create(
-        splashLabel,
-        TweenInfo.new(0.5, Enum.EasingStyle.Quad),
-        {TextTransparency = 0}
-    )
+    -- Cria a GUI principal
+    self.ScreenGui = createElement("ScreenGui", {
+        Name = "TuxRay_"..tostring(math.random(10000, 99999)),
+        ResetOnSpawn = false,
+        ZIndexBehavior = Enum.ZIndexBehavior.Global,
+        Parent = CoreGui
+    })
     
-    local githubFadeIn = TweenService:Create(
-        githubLabel,
-        TweenInfo.new(0.7, Enum.EasingStyle.Quad),
-        {TextTransparency = 0}
-    )
+    -- Frame principal
+    self.MainFrame = createElement("Frame", {
+        Name = "MainFrame",
+        Size = self.Size,
+        Position = self.Position,
+        AnchorPoint = self.AnchorPoint,
+        BackgroundColor3 = BACKGROUND_COLOR,
+        BorderSizePixel = 0,
+        Parent = self.ScreenGui
+    })
+    createCorner(self.MainFrame, 12)
+    createShadow(self.MainFrame)
     
-    fadeIn:Play()
-    githubFadeIn:Play()
+    -- Barra de título
+    self.TitleBar = createElement("Frame", {
+        Name = "TitleBar",
+        Size = UDim2.new(1, 0, 0, 36),
+        BackgroundColor3 = ELEMENT_COLOR,
+        BorderSizePixel = 0,
+        Parent = self.MainFrame
+    })
+    createCorner(self.TitleBar, 12)
     
-    -- Animação de saída (após 2.5 segundos)
-    task.delay(2.5, function()
-        local fadeOut = TweenService:Create(
-            splashLabel,
-            TweenInfo.new(0.5, Enum.EasingStyle.Quad),
-            {TextTransparency = 1}
-        )
-        
-        local githubFadeOut = TweenService:Create(
-            githubLabel,
-            TweenInfo.new(0.5, Enum.EasingStyle.Quad),
-            {TextTransparency = 1}
-        )
-        
-        fadeOut:Play()
-        githubFadeOut:Play()
-    end)
-end
-
-function TuxRay:DestroySplashScreen()
-    if library.Splash and library.Splash.Parent then
-        library.Splash:Destroy()
-        library.Splash = nil
-    end
-end
-
-function TuxRay:CreateMiniButton()
-    -- Criar bolinha flutuante
-    library.MiniButton = Instance.new("TextButton")
-    library.MiniButton.Name = "MiniBtn"
-    library.MiniButton.Size = UDim2.new(0, 56, 0, 56)
-    library.MiniButton.Position = UDim2.new(0.5, -28, 0.5, -28)
-    library.MiniButton.BackgroundColor3 = COLOR_PALETTE.Accent
-    library.MiniButton.BorderSizePixel = 0
-    library.MiniButton.Text = ""
+    -- Título
+    self.TitleLabel = createElement("TextLabel", {
+        Name = "TitleLabel",
+        Size = UDim2.new(1, -80, 1, 0),
+        Position = UDim2.new(0, 12, 0, 0),
+        BackgroundTransparency = 1,
+        Text = self.Name,
+        TextColor3 = ACCENT_COLOR,
+        TextSize = 20,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = self.TitleBar
+    })
     
-    -- Se a UI principal ainda não existe, crie-a
-    if not library.MainUI then
-        self:CreateMainUI()
-    end
-    
-    library.MiniButton.Parent = library.MainUI
-    Instance.new("UICorner", library.MiniButton).CornerRadius = UDim.new(1, 0)
-
-    -- Ícone da bolinha
-    local icon = Instance.new("ImageLabel", library.MiniButton)
-    icon.BackgroundTransparency = 1
-    icon.Size = UDim2.new(1, -8, 1, -8)
-    icon.Position = UDim2.new(0, 4, 0, 4)
-    icon.Image = "rbxassetid://138110497553919"
-
-    -- Funcionalidade de arrastar
-    local dragging, startPos, startGui
-    library.MiniButton.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            startPos = library.MiniButton.Position
-            startGui = i.Position
-            i.Changed:Connect(function()
-                if i.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(i)
-        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-            library.MiniButton.Position = startPos + UDim2.new(0, i.Position.X - startGui.X, 0, i.Position.Y - startGui.Y)
-        end
-    end)
-
-    -- Alternar UI principal e centralizar
-    library.MiniButton.MouseButton1Click:Connect(function()
-        if library.MainWindow then
-            library.MainWindow.Visible = not library.MainWindow.Visible
-            
-            -- CORREÇÃO: Centralizar a janela quando aberta
-            if library.MainWindow.Visible then
-                library.MainWindow.Position = UDim2.new(0.5, -250, 0.5, -200)
-            end
-        end
-    end)
-    
-    -- Animação de entrada da bolinha
-    library.MiniButton.BackgroundTransparency = 1
-    icon.ImageTransparency = 1
-    
-    local fadeIn = TweenService:Create(
-        library.MiniButton,
-        TweenInfo.new(0.5, Enum.EasingStyle.Quad),
-        {BackgroundTransparency = 0}
-    )
-    
-    local iconFadeIn = TweenService:Create(
-        icon,
-        TweenInfo.new(0.5, Enum.EasingStyle.Quad),
-        {ImageTransparency = 0}
-    )
-    
-    fadeIn:Play()
-    iconFadeIn:Play()
-end
-
-function TuxRay:CreateMainUI()
-    -- Criação da UI principal
-    library.MainUI = Instance.new("ScreenGui")
-    library.MainUI.Name = "TuxRayUI"
-    library.MainUI.Parent = CoreGui
-    library.MainUI.ResetOnSpawn = false
-    library.MainUI.Enabled = true
-
-    -- Criar a janela principal
-    self:CreateMainWindow()
-    
-    -- Criar a área de conteúdo
-    self:CreateContentArea()
-end
-
-function TuxRay:CreateMainWindow()
-    -- Janela principal (inicialmente invisível)
-    library.MainWindow = Instance.new("Frame", library.MainUI)
-    library.MainWindow.Name = "MainWindow"
-    library.MainWindow.Size = UDim2.new(0, 500, 0, 450)
-    library.MainWindow.Position = UDim2.new(0.5, -250, 0.5, -225)
-    library.MainWindow.AnchorPoint = Vector2.new(0.5, 0.5)
-    library.MainWindow.BackgroundColor3 = library.Config.Color
-    library.MainWindow.BorderSizePixel = 0
-    library.MainWindow.ClipsDescendants = true
-    library.MainWindow.Visible = false
-    Instance.new("UICorner", library.MainWindow).CornerRadius = UDim.new(0, 12)
-
-    -- Barra de título (arrastável)
-    library.TitleBar = Instance.new("Frame", library.MainWindow)
-    library.TitleBar.Name = "TitleBar"
-    library.TitleBar.Size = UDim2.new(1, 0, 0, 36)
-    library.TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-    library.TitleBar.BorderSizePixel = 0
-    Instance.new("UICorner", library.TitleBar).CornerRadius = UDim.new(0, 12)
-
-    local title = Instance.new("TextLabel", library.TitleBar)
-    title.Size = UDim2.new(1, -12, 1, 0)
-    title.Position = UDim2.new(0, 12, 0, 0)
-    title.BackgroundTransparency = 1
-    title.Text = "TuxRay"
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 24
-    title.TextColor3 = Color3.fromRGB(200, 200, 255)
-    title.TextXAlignment = Enum.TextXAlignment.Left
-
     -- Botão de fechar
-    local closeButton = Instance.new("TextButton", library.TitleBar)
-    closeButton.Name = "CloseButton"
-    closeButton.Size = UDim2.new(0, 30, 1, 0)
-    closeButton.Position = UDim2.new(1, -30, 0, 0)
-    closeButton.BackgroundTransparency = 1
-    closeButton.TextColor3 = Color3.fromRGB(220, 220, 220)
-    closeButton.Text = "X"
-    closeButton.TextSize = 18
-    closeButton.Font = Enum.Font.GothamBold
+    self.CloseButton = createElement("TextButton", {
+        Name = "CloseButton",
+        Size = UDim2.new(0, 32, 0, 32),
+        Position = UDim2.new(1, -40, 0.5, -16),
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = ELEMENT_COLOR,
+        Text = "X",
+        TextColor3 = TEXT_COLOR,
+        TextSize = 18,
+        Font = Enum.Font.GothamBold,
+        Parent = self.TitleBar
+    })
+    createCorner(self.CloseButton, 8)
     
-    closeButton.MouseButton1Click:Connect(function()
-        library.MainWindow.Visible = false
-    end)
-
-    -- Área de abas
-    library.TabContainer = Instance.new("Frame", library.MainWindow)
-    library.TabContainer.Name = "TabContainer"
-    library.TabContainer.Size = UDim2.new(1, -20, 0, 40)
-    library.TabContainer.Position = UDim2.new(0, 10, 0, 40)
-    library.TabContainer.BackgroundTransparency = 1
+    -- Container para tabs
+    self.TabContainer = createElement("Frame", {
+        Name = "TabContainer",
+        Size = UDim2.new(1, -24, 0, 36),
+        Position = UDim2.new(0, 12, 0, 44),
+        BackgroundTransparency = 1,
+        Parent = self.MainFrame
+    })
     
-    -- Funcionalidade de arrastar a janela
+    -- Container para conteúdo
+    self.ContentFrame = createElement("ScrollingFrame", {
+        Name = "ContentFrame",
+        Size = UDim2.new(1, -24, 1, -96),
+        Position = UDim2.new(0, 12, 0, 88),
+        BackgroundTransparency = 1,
+        ScrollBarThickness = 4,
+        ScrollBarImageColor3 = ACCENT_COLOR,
+        Parent = self.MainFrame
+    })
+    
+    -- Lista para elementos de UI
+    self.UIListLayout = createElement("UIListLayout", {
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 8),
+        Parent = self.ContentFrame
+    })
+    
+    -- Configurar arrastar a janela
     local dragging, dragInput, dragStart, startPos
-    local function update(input)
-        local delta = input.Position - dragStart
-        library.MainWindow.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-
-    library.TitleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+    self.TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragStart = input.Position
-            startPos = library.MainWindow.Position
+            startPos = self.MainFrame.Position
             
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
@@ -363,303 +166,487 @@ function TuxRay:CreateMainWindow()
             end)
         end
     end)
-
-    library.TitleBar.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+    
+    self.TitleBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
             dragInput = input
         end
     end)
-
+    
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
-            update(input)
+            local delta = input.Position - dragStart
+            self.MainFrame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
         end
     end)
-end
-
-function TuxRay:CreateContentArea()
-    -- Área de conteúdo
-    library.ContentArea = Instance.new("ScrollingFrame", library.MainWindow)
-    library.ContentArea.Name = "ContentArea"
-    library.ContentArea.Size = UDim2.new(1, -20, 1, -90)
-    library.ContentArea.Position = UDim2.new(0, 10, 0, 85)
-    library.ContentArea.BackgroundTransparency = 1
-    library.ContentArea.ClipsDescendants = true
-    library.ContentArea.ScrollBarThickness = 5
-    library.ContentArea.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    library.ContentArea.CanvasSize = UDim2.new(0, 0, 0, 0)
     
-    local uiListLayout = Instance.new("UIListLayout", library.ContentArea)
-    uiListLayout.Padding = UDim.new(0, 10)
-    uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    -- Configurar tecla de toggle
+    self.ToggleConnection = UserInputService.InputBegan:Connect(function(input)
+        if input.KeyCode == self.ToggleKey then
+            self.ScreenGui.Enabled = not self.ScreenGui.Enabled
+        end
+    end)
+    
+    -- Fechar a janela
+    self.CloseButton.MouseButton1Click:Connect(function()
+        self:Destroy()
+    end)
+    
+    self.Tabs = {}
+    self.CurrentTab = nil
+    
+    return self
 end
 
-function TuxRay:CreateTabButton(name)
-    if not library.TabContainer then
-        task.spawn(function()
-            wait(0.5)
-            self:CreateTabButton(name)
-        end)
-        return
+-- Adicionar uma nova aba
+function TuxRay:AddTab(name)
+    local tab = {
+        Name = name,
+        Buttons = {},
+        Toggles = {},
+        Sections = {}
+    }
+    
+    -- Criar botão da aba
+    local tabButton = createElement("TextButton", {
+        Name = name.."TabButton",
+        Size = UDim2.new(0, 100, 1, 0),
+        BackgroundColor3 = ELEMENT_COLOR,
+        Text = name,
+        TextColor3 = TEXT_COLOR,
+        TextSize = 14,
+        Font = Enum.Font.GothamMedium,
+        LayoutOrder = #self.Tabs + 1,
+        Parent = self.TabContainer
+    })
+    createCorner(tabButton, 8)
+    
+    -- Configurar clique na aba
+    tabButton.MouseButton1Click:Connect(function()
+        self:SwitchTab(tab)
+    end)
+    
+    table.insert(self.Tabs, tab)
+    
+    -- Selecionar a primeira aba por padrão
+    if #self.Tabs == 1 then
+        self:SwitchTab(tab)
     end
     
-    local tabButton = Instance.new("TextButton", library.TabContainer)
-    tabButton.Name = name.."Tab"
-    tabButton.Size = UDim2.new(0.3, 0, 1, 0)
-    tabButton.Position = UDim2.new(#library.TabContainer:GetChildren() * 0.3, 0, 0, 0)
-    tabButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    tabButton.TextColor3 = Color3.fromRGB(200, 200, 255)
-    tabButton.Text = name
-    tabButton.Font = Enum.Font.GothamMedium
-    tabButton.TextSize = 14
-    Instance.new("UICorner", tabButton).CornerRadius = UDim.new(0, 6)
+    return tab
+end
+
+-- Mudar para uma aba específica
+function TuxRay:SwitchTab(tab)
+    if self.CurrentTab == tab then return end
     
-    -- Funcionalidade de seleção de aba
-    tabButton.MouseButton1Click:Connect(function()
-        for _, child in ipairs(library.TabContainer:GetChildren()) do
-            if child:IsA("TextButton") then
-                child.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    -- Atualizar botões de abas
+    for _, t in ipairs(self.Tabs) do
+        local button = self.TabContainer:FindFirstChild(t.Name.."TabButton")
+        if button then
+            if t == tab then
+                button.BackgroundColor3 = ACCENT_COLOR
+                button.TextColor3 = Color3.new(1, 1, 1)
+            else
+                button.BackgroundColor3 = ELEMENT_COLOR
+                button.TextColor3 = TEXT_COLOR
             end
         end
-        
-        tabButton.BackgroundColor3 = COLOR_PALETTE.Accent
-    end)
-    
-    if #library.TabContainer:GetChildren() == 1 then
-        tabButton.BackgroundColor3 = COLOR_PALETTE.Accent
     end
+    
+    -- Limpar conteúdo atual
+    for _, child in ipairs(self.ContentFrame:GetChildren()) do
+        if child:IsA("Frame") then
+            child.Visible = false
+        end
+    end
+    
+    -- Mostrar conteúdo da nova aba
+    if not tab.ContentFrame then
+        -- Criar frame de conteúdo se não existir
+        tab.ContentFrame = createElement("Frame", {
+            Name = tab.Name.."Content",
+            Size = UDim2.new(1, 0, 1, 0),
+            BackgroundTransparency = 1,
+            Parent = self.ContentFrame
+        })
+        
+        local listLayout = createElement("UIListLayout", {
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, 12),
+            Parent = tab.ContentFrame
+        })
+    end
+    
+    tab.ContentFrame.Visible = true
+    self.CurrentTab = tab
 end
 
--- Métodos para criar elementos
-function TuxRay:CreateButton(tab, options)
-    if not options.Name then return end
+-- Adicionar uma seção à aba atual
+function TuxRay:AddSection(name)
+    if not self.CurrentTab then return end
     
-    if not self:EnsureUIReady() or not library.ContentArea then
-        task.spawn(function()
-            wait(0.1)
-            self:CreateButton(tab, options)
-        end)
-        return
-    end
+    local section = {
+        Name = name,
+        Elements = {}
+    }
     
-    local button = Instance.new("TextButton")
-    button.Name = options.Name
-    button.Text = options.Name
-    button.Size = UDim2.new(1, 0, 0, 32)
-    button.LayoutOrder = #library.ContentArea:GetChildren()
-    button.BackgroundColor3 = COLOR_PALETTE.Accent
-    button.TextColor3 = Color3.new(1, 1, 1)
-    button.Font = Enum.Font.GothamMedium
-    button.TextSize = 14
-    button.Parent = library.ContentArea
-    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+    local sectionFrame = createElement("Frame", {
+        Name = name.."Section",
+        Size = UDim2.new(1, 0, 0, 0),
+        BackgroundTransparency = 1,
+        LayoutOrder = #self.CurrentTab.Sections + 1,
+        Parent = self.CurrentTab.ContentFrame
+    })
     
-    button.MouseButton1Click:Connect(function()
-        if options.Callback then
-            options.Callback()
-        end
-    end)
+    local sectionTitle = createElement("TextLabel", {
+        Name = "SectionTitle",
+        Size = UDim2.new(1, 0, 0, 24),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = ACCENT_COLOR,
+        TextSize = 16,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = sectionFrame
+    })
     
-    button.MouseEnter:Connect(function()
-        button.BackgroundColor3 = Color3.fromRGB(100, 140, 200)
-    end)
+    local sectionElements = createElement("Frame", {
+        Name = "Elements",
+        Size = UDim2.new(1, 0, 0, 0),
+        Position = UDim2.new(0, 0, 0, 28),
+        BackgroundTransparency = 1,
+        Parent = sectionFrame
+    })
     
-    button.MouseLeave:Connect(function()
-        button.BackgroundColor3 = COLOR_PALETTE.Accent
-    end)
+    local listLayout = createElement("UIListLayout", {
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 8),
+        Parent = sectionElements
+    })
     
-    table.insert(tab.Elements, button)
+    section.Frame = sectionFrame
+    section.ElementsFrame = sectionElements
+    table.insert(self.CurrentTab.Sections, section)
+    
+    return section
+end
+
+-- Adicionar um botão à seção
+function TuxRay:AddButton(section, name, callback)
+    if not section then return end
+    
+    local button = createElement("TextButton", {
+        Name = name,
+        Size = UDim2.new(1, 0, 0, 36),
+        BackgroundColor3 = ELEMENT_COLOR,
+        Text = name,
+        TextColor3 = TEXT_COLOR,
+        TextSize = 14,
+        Font = Enum.Font.GothamMedium,
+        LayoutOrder = #section.Elements + 1,
+        Parent = section.ElementsFrame
+    })
+    createCorner(button, 8)
+    
+    button.MouseButton1Click:Connect(callback)
+    
+    table.insert(section.Elements, button)
+    
     return button
 end
 
-function TuxRay:CreateToggle(tab, options)
-    if not options.Name then return end
+-- Adicionar um toggle à seção
+function TuxRay:AddToggle(section, name, default, callback)
+    if not section then return end
     
-    if not self:EnsureUIReady() or not library.ContentArea then
-        task.spawn(function()
-            wait(0.1)
-            self:CreateToggle(tab, options)
-        end)
-        return
-    end
+    local toggle = {
+        Name = name,
+        State = default or false,
+        Callback = callback
+    }
     
-    local toggle = Instance.new("TextButton")
-    toggle.Name = options.Name
-    toggle.Text = (options.Default and "ON  | " or "OFF | ") .. options.Name
-    toggle.Size = UDim2.new(1, 0, 0, 32)
-    toggle.LayoutOrder = #library.ContentArea:GetChildren()
-    toggle.BackgroundColor3 = options.Default and Color3.fromRGB(36, 56, 46) or Color3.fromRGB(56, 36, 36)
-    toggle.TextColor3 = options.Default and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(255, 100, 100)
-    toggle.Font = Enum.Font.GothamMedium
-    toggle.TextSize = 14
-    toggle.AutoButtonColor = false
-    toggle.Parent = library.ContentArea
-    Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 8)
+    local toggleFrame = createElement("Frame", {
+        Name = name.."Toggle",
+        Size = UDim2.new(1, 0, 0, 36),
+        BackgroundTransparency = 1,
+        LayoutOrder = #section.Elements + 1,
+        Parent = section.ElementsFrame
+    })
     
-    local state = options.Default or false
+    local toggleButton = createElement("TextButton", {
+        Name = "ToggleButton",
+        Size = UDim2.new(0, 80, 1, 0),
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, 0, 0, 0),
+        BackgroundColor3 = toggle.State and ACCENT_COLOR or Color3.fromRGB(80, 80, 100),
+        Text = toggle.State and "ON" or "OFF",
+        TextColor3 = Color3.new(1, 1, 1),
+        TextSize = 14,
+        Font = Enum.Font.GothamMedium,
+        Parent = toggleFrame
+    })
+    createCorner(toggleButton, 8)
     
-    toggle.MouseButton1Click:Connect(function()
-        state = not state
-        toggle.Text = (state and "ON  | " or "OFF | ") .. options.Name
-        toggle.TextColor3 = state and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(255, 100, 100)
-        toggle.BackgroundColor3 = state and Color3.fromRGB(36, 56, 46) or Color3.fromRGB(56, 36, 36)
+    local toggleLabel = createElement("TextLabel", {
+        Name = "ToggleLabel",
+        Size = UDim2.new(1, -90, 1, 0),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = TEXT_COLOR,
+        TextSize = 14,
+        Font = Enum.Font.GothamMedium,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = toggleFrame
+    })
+    
+    toggleButton.MouseButton1Click:Connect(function()
+        toggle.State = not toggle.State
+        toggleButton.Text = toggle.State and "ON" or "OFF"
+        toggleButton.BackgroundColor3 = toggle.State and ACCENT_COLOR or Color3.fromRGB(80, 80, 100)
         
-        if options.Callback then
-            options.Callback(state)
+        if callback then
+            callback(toggle.State)
         end
     end)
     
-    table.insert(tab.Elements, toggle)
+    toggle.Frame = toggleFrame
+    toggle.Button = toggleButton
+    table.insert(section.Elements, toggle)
+    
     return toggle
 end
 
-function TuxRay:CreateLabel(tab, options)
-    if not options.Name then return end
+-- Adicionar um slider à seção
+function TuxRay:AddSlider(section, name, min, max, default, callback)
+    if not section then return end
     
-    if not self:EnsureUIReady() or not library.ContentArea then
-        task.spawn(function()
-            wait(0.1)
-            self:CreateLabel(tab, options)
-        end)
-        return
-    end
+    local slider = {
+        Name = name,
+        Value = default or min,
+        Min = min,
+        Max = max,
+        Callback = callback
+    }
     
-    local label = Instance.new("TextLabel")
-    label.Name = "Label_"..options.Name
-    label.Text = options.Name
-    label.Size = UDim2.new(1, 0, 0, 24)
-    label.LayoutOrder = #library.ContentArea:GetChildren()
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(170, 205, 255)
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = library.ContentArea
+    local sliderFrame = createElement("Frame", {
+        Name = name.."Slider",
+        Size = UDim2.new(1, 0, 0, 60),
+        BackgroundTransparency = 1,
+        LayoutOrder = #section.Elements + 1,
+        Parent = section.ElementsFrame
+    })
     
-    table.insert(tab.Elements, label)
-    return label
-end
-
-function TuxRay:CreateSlider(tab, options)
-    if not options.Name then return end
-    if not options.Min or not options.Max then return end
+    local sliderLabel = createElement("TextLabel", {
+        Name = "SliderLabel",
+        Size = UDim2.new(1, 0, 0, 20),
+        BackgroundTransparency = 1,
+        Text = name..": "..tostring(slider.Value),
+        TextColor3 = TEXT_COLOR,
+        TextSize = 14,
+        Font = Enum.Font.GothamMedium,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = sliderFrame
+    })
     
-    if not self:EnsureUIReady() or not library.ContentArea then
-        task.spawn(function()
-            wait(0.1)
-            self:CreateSlider(tab, options)
-        end)
-        return
-    end
+    local sliderTrack = createElement("Frame", {
+        Name = "SliderTrack",
+        Size = UDim2.new(1, 0, 0, 8),
+        Position = UDim2.new(0, 0, 0, 30),
+        BackgroundColor3 = Color3.fromRGB(60, 60, 80),
+        Parent = sliderFrame
+    })
+    createCorner(sliderTrack, 4)
     
-    local defaultValue = options.Default or options.Min
-    local precision = options.Precision or 0
+    local sliderFill = createElement("Frame", {
+        Name = "SliderFill",
+        Size = UDim2.new((slider.Value - min) / (max - min), 0, 1, 0),
+        BackgroundColor3 = ACCENT_COLOR,
+        Parent = sliderTrack
+    })
+    createCorner(sliderFill, 4)
     
-    -- Container do slider
-    local sliderContainer = Instance.new("Frame")
-    sliderContainer.Name = options.Name .. "SliderContainer"
-    sliderContainer.Size = UDim2.new(1, 0, 0, 60)
-    sliderContainer.LayoutOrder = #library.ContentArea:GetChildren()
-    sliderContainer.BackgroundTransparency = 1
-    sliderContainer.Parent = library.ContentArea
+    local sliderButton = createElement("TextButton", {
+        Name = "SliderButton",
+        Size = UDim2.new(0, 16, 0, 16),
+        Position = UDim2.new((slider.Value - min) / (max - min), -8, 0.5, -8),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = Color3.new(1, 1, 1),
+        AutoButtonColor = false,
+        Text = "",
+        Parent = sliderTrack
+    })
+    createCorner(sliderButton, 8)
     
-    -- Label do nome e valor
-    local label = Instance.new("TextLabel", sliderContainer)
-    label.Name = "Label"
-    label.Size = UDim2.new(1, 0, 0, 20)
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = string.format("%s: [%.*f]", options.Name, precision, defaultValue)
-    label.TextColor3 = Color3.fromRGB(170, 205, 255)
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    
-    -- Barra de fundo
-    local track = Instance.new("Frame", sliderContainer)
-    track.Name = "Track"
-    track.Size = UDim2.new(1, 0, 0, 6)
-    track.Position = UDim2.new(0, 0, 0, 30)
-    track.BackgroundColor3 = COLOR_PALETTE.SliderTrack
-    track.BorderSizePixel = 0
-    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
-    
-    -- Barra de preenchimento
-    local fill = Instance.new("Frame", track)
-    fill.Name = "Fill"
-    fill.Size = UDim2.new((defaultValue - options.Min) / (options.Max - options.Min), 0, 1, 0)
-    fill.BackgroundColor3 = COLOR_PALETTE.SliderFill
-    fill.BorderSizePixel = 0
-    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
-    
-    -- Thumb (botão de arrasto)
-    local thumb = Instance.new("TextButton", track)
-    thumb.Name = "Thumb"
-    thumb.Size = UDim2.new(0, 16, 0, 16)
-    thumb.AnchorPoint = Vector2.new(0.5, 0.5)
-    thumb.Position = UDim2.new(fill.Size.X.Scale, 0, 0.5, 0)
-    thumb.BackgroundColor3 = Color3.new(1, 1, 1)
-    thumb.Text = ""
-    thumb.ZIndex = 2
-    Instance.new("UICorner", thumb).CornerRadius = UDim.new(1, 0)
-    
-    -- Função para atualizar o valor do slider
-    local function setValue(value)
-        value = math.clamp(value, options.Min, options.Max)
-        value = tonumber(string.format("%."..precision.."f", value))
-        
-        fill.Size = UDim2.new((value - options.Min) / (options.Max - options.Min), 0, 1, 0)
-        thumb.Position = UDim2.new(fill.Size.X.Scale, 0, 0.5, 0)
-        label.Text = string.format("%s: [%.*f]", options.Name, precision, value)
-        
-        if options.Callback then
-            options.Callback(value)
-        end
-    end
-    
-    -- Interação
+    -- Configurar interação do slider
     local dragging = false
-    local function updateSlider(input)
-        local relativeX = (input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X
-        local value = options.Min + (options.Max - options.Min) * math.clamp(relativeX, 0, 1)
-        setValue(value)
-    end
     
-    thumb.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-        end
+    sliderButton.MouseButton1Down:Connect(function()
+        dragging = true
     end)
     
-    thumb.InputEnded:Connect(function(input)
+    UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
         end
     end)
     
-    track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            updateSlider(input)
-        end
+    sliderTrack.MouseButton1Down:Connect(function(x, y)
+        dragging = true
+        local percent = math.clamp((x - sliderTrack.AbsolutePosition.X) / sliderTrack.AbsoluteSize.X, 0, 1)
+        slider.Value = math.floor(min + (max - min) * percent)
+        updateSlider()
     end)
     
     UserInputService.InputChanged:Connect(function(input)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateSlider(input)
+            local percent = math.clamp((input.Position.X - sliderTrack.AbsolutePosition.X) / sliderTrack.AbsoluteSize.X, 0, 1)
+            slider.Value = math.floor(min + (max - min) * percent)
+            updateSlider()
         end
     end)
     
-    -- Inicializar com o valor padrão
-    setValue(defaultValue)
+    local function updateSlider()
+        sliderLabel.Text = name..": "..tostring(slider.Value)
+        sliderFill.Size = UDim2.new((slider.Value - min) / (max - min), 0, 1, 0)
+        sliderButton.Position = UDim2.new((slider.Value - min) / (max - min), -8, 0.5, -8)
+        
+        if callback then
+            callback(slider.Value)
+        end
+    end
     
-    table.insert(tab.Elements, sliderContainer)
-    return sliderContainer
+    slider.Frame = sliderFrame
+    table.insert(section.Elements, slider)
+    
+    return slider
 end
 
--- Função de inicialização
-local function Initialize()
-    return TuxRay
+-- Adicionar um dropdown à seção
+function TuxRay:AddDropdown(section, name, options, default, callback)
+    if not section then return end
+    
+    local dropdown = {
+        Name = name,
+        Options = options,
+        Selected = default or options[1],
+        Callback = callback,
+        Open = false
+    }
+    
+    local dropdownFrame = createElement("Frame", {
+        Name = name.."Dropdown",
+        Size = UDim2.new(1, 0, 0, 36),
+        BackgroundTransparency = 1,
+        LayoutOrder = #section.Elements + 1,
+        Parent = section.ElementsFrame
+    })
+    
+    local dropdownButton = createElement("TextButton", {
+        Name = "DropdownButton",
+        Size = UDim2.new(1, 0, 0, 36),
+        BackgroundColor3 = ELEMENT_COLOR,
+        Text = name..": "..dropdown.Selected,
+        TextColor3 = TEXT_COLOR,
+        TextSize = 14,
+        Font = Enum.Font.GothamMedium,
+        Parent = dropdownFrame
+    })
+    createCorner(dropdownButton, 8)
+    
+    local dropdownList = createElement("Frame", {
+        Name = "DropdownList",
+        Size = UDim2.new(1, 0, 0, 0),
+        Position = UDim2.new(0, 0, 0, 40),
+        BackgroundColor3 = ELEMENT_COLOR,
+        Visible = false,
+        Parent = dropdownFrame
+    })
+    createCorner(dropdownList, 8)
+    
+    local listLayout = createElement("UIListLayout", {
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = dropdownList
+    })
+    
+    dropdownButton.MouseButton1Click:Connect(function()
+        dropdown.Open = not dropdown.Open
+        dropdownList.Visible = dropdown.Open
+        
+        if dropdown.Open then
+            -- Criar itens do dropdown
+            for i, option in ipairs(dropdown.Options) do
+                local optionButton = createElement("TextButton", {
+                    Name = option.."Option",
+                    Size = UDim2.new(1, 0, 0, 30),
+                    BackgroundColor3 = ELEMENT_COLOR,
+                    Text = option,
+                    TextColor3 = TEXT_COLOR,
+                    TextSize = 14,
+                    Font = Enum.Font.GothamMedium,
+                    LayoutOrder = i,
+                    Parent = dropdownList
+                })
+                
+                optionButton.MouseButton1Click:Connect(function()
+                    dropdown.Selected = option
+                    dropdownButton.Text = name..": "..option
+                    dropdownList.Visible = false
+                    dropdown.Open = false
+                    
+                    if callback then
+                        callback(option)
+                    end
+                end)
+            end
+            
+            -- Atualizar tamanho da lista
+            dropdownList.Size = UDim2.new(1, 0, 0, #dropdown.Options * 30 + 4)
+        end
+    end)
+    
+    dropdown.Frame = dropdownFrame
+    table.insert(section.Elements, dropdown)
+    
+    return dropdown
 end
 
-return Initialize()
+-- Adicionar um label à seção
+function TuxRay:AddLabel(section, text)
+    if not section then return end
+    
+    local label = createElement("TextLabel", {
+        Name = "Label",
+        Size = UDim2.new(1, 0, 0, 24),
+        BackgroundTransparency = 1,
+        Text = text,
+        TextColor3 = TEXT_COLOR,
+        TextSize = 14,
+        Font = Enum.Font.GothamMedium,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        LayoutOrder = #section.Elements + 1,
+        Parent = section.ElementsFrame
+    })
+    
+    table.insert(section.Elements, label)
+    
+    return label
+end
+
+-- Destruir a UI
+function TuxRay:Destroy()
+    if self.ToggleConnection then
+        self.ToggleConnection:Disconnect()
+    end
+    
+    if self.ScreenGui then
+        self.ScreenGui:Destroy()
+    end
+end
+
+return TuxRay
